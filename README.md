@@ -6,7 +6,9 @@ your other compartments.
 
 It accomplishes this feat by by leveraging both
 the excellent [`pass`](https://passwordstore.org/) program, and
-Qubes OS IPC to.
+Qubes OS IPC to isolate the actual password store — and the
+master password for the store — from the environments where you
+may use the passwords in the store.
 
 With this program, you can store and retrieve passwords between VMs
 without having to grant any of the VMs any special policy privileges
