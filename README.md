@@ -14,6 +14,13 @@ With this program, you can store and retrieve passwords between VMs
 without having to grant any of the VMs any special policy privileges
 other than access to the Qubes services implemented here.
 
+Details and features:
+
+1. The actual password store is stored in a separate VM, never decrypted in the VM you manage the passwords from.
+2. You do not need to set up your own GPG key, as `qvm-pass init` does it for you.
+3. There are two different services  one for read-only access and one for read-write.
+4. There is a `get-or-generate` feature, not available in normal `pass`, which is useful for stuff like programs that need a password generated and then remembered (such as the excellent [`qubes-pass` Ansible lookup plugin](https://github.com/Rudd-O/ansible-qubes/tree/master/lookup_plugins).
+
 *Tip:* combine this program with the excellent [`qubes-pass` lookup plugin
 for Ansible Qubes](https://github.com/Rudd-O/ansible-qubes) or the
 [`pass` lookup plugin for Ansible](https://github.com/gcoop-libre/ansible-lookup-plugin-pass)
