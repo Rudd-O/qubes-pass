@@ -70,9 +70,12 @@ fi
 %attr(0644, root, root) %{_sysconfdir}/qubes-rpc/ruddo.PassManage
 
 %files dom0
-%config(noreplace) %attr(0644, root, qubes) %{_sysconfdir}/qubes-rpc/policy/ruddo.PassRead
-%config(noreplace) %attr(0644, root, qubes) %{_sysconfdir}/qubes-rpc/policy/ruddo.PassManage
+%config(noreplace) %attr(0664, root, qubes) %{_sysconfdir}/qubes-rpc/policy/ruddo.PassRead
+%config(noreplace) %attr(0664, root, qubes) %{_sysconfdir}/qubes-rpc/policy/ruddo.PassManage
 
 %changelog
-* Mon Oct 24 2016 Manuel Amador (Rudd-O) <rudd-o@rudd-o.com>
+* Sun Mar 07 2016 Manuel Amador (Rudd-O) <rudd-o@rudd-o.com>
+- Fixed slight permissions issue in policies.
+
+* Sun Mar 07 2016 Manuel Amador (Rudd-O) <rudd-o@rudd-o.com>
 - Initial release.
