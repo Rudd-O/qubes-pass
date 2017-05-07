@@ -1,14 +1,50 @@
 # Inter-VM Pass password manager for Qubes OS
 
-This is a very simple bridge between Qubes OS VMs.  With it, you can
-store and retrieve passwords between VMs without having to grant
-any of the VMs any special policy privileges other than access to the
-Qubes services implemented here.
+This is a very simple password management system that lets you
+securely store passwords in a compartment fully isolated from
+your other compartments.
+
+It accomplishes this feat by by leveraging both
+the excellent [`pass`](https://passwordstore.org/) program, and
+Qubes OS IPC to.
+
+With this program, you can store and retrieve passwords between VMs
+without having to grant any of the VMs any special policy privileges
+other than access to the Qubes services implemented here.
 
 ## Using the software
 
 These instructions assume you have installed the software.  See the
 *Installing the software* heading below for more information.
+
+Step 1: decide which VM you'll use to manage passwords, and which
+VM you'll use to store passwords in.
+
+In the password manager VM, create the file `/rw/config/pass-split-domain`
+and add the name of the password store VM as the first and only
+line of the file.
+
+Now, from the password manager VM, run the command:
+
+```
+qvm-pass init
+```
+
+This step will create the necessary GPG keys and password store database
+in the password store VM.  You'll receive a Qubes policy prompt asking
+you whether to allow your password manager VM to access `ruddo.PassManage`
+— it is safe to say yes.  You will then receive a password prompt from
+GPG, confirming the creation of the key and the password that, in the
+future, will be used to encrypt and access the password store.
+
+Note: don't forget to back your password store VM up regularly!
+
+At this point, you are ready to `list`, `insert` and run other operations
+in your password store VM.  `list` and `get` operations will use the
+service `ruddo.PassRead`, while management operations will use the
+service `ruddo.PassManage`, which allows you to set different policies
+for different VMs based on what you want these VMs to be able to do with
+the password store VM.
 
 Run `qvm-pass -?` on a terminal to get usage information.
 
