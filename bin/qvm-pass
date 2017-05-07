@@ -95,11 +95,11 @@ case "$1" in
             echo ""
             contents=$(cat)
         elif [ "$echo" == "1" ] ; then
-            read -p "Enter password for b: " contents >&2
+            read -p "Enter password for $1: " contents >&2
         else
-            read -s -p "Enter password for b: " contents >&2
+            read -s -p "Enter password for $1: " contents >&2
             echo
-            read -s -p "Retype password for b: " retypedcontents >&2
+            read -s -p "Retype password for $1: " retypedcontents >&2
             echo
             if [ "$retypedcontents" != "$contents" ] ; then
                 echo "Error: the entered passwords do not match."
