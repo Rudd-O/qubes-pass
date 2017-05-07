@@ -15,30 +15,30 @@ fi
 
 if [ "$1" == "list" ] ; then
 
-    cmd=$(echo "$1" | base64)
+    cmd=$(echo "$1" | base64 -w 0)
     echo "$cmd" | /usr/lib/qubes/qrexec-client-vm "$QUBES_PASS_DOMAIN" ruddo.PassRead
 
 elif [ "$1" == "get" ] ; then
 
-    cmd=$(echo "$1" | base64)
-    key=$(echo "$2" | base64)
+    cmd=$(echo "$1" | base64 -w 0)
+    key=$(echo "$2" | base64 -w 0)
     echo "$cmd
 $key" | /usr/lib/qubes/qrexec-client-vm "$QUBES_PASS_DOMAIN" ruddo.PassRead
 
 elif [ "$1" == "get-or-generate" ] ; then
-    cmd=$(echo "$1" | base64)
-    key=$(echo "$2" | base64)
-    autogen=$(echo 1 | base64)
+    cmd=$(echo "$1" | base64 -w 0)
+    key=$(echo "$2" | base64 -w 0)
+    autogen=$(echo 1 | base64 -w 0)
     echo "$cmd
 $key
 $autogen" | /usr/lib/qubes/qrexec-client-vm "$QUBES_PASS_DOMAIN" ruddo.PassManage
 
 elif [ "$1" == "insert" ] ; then
 
-    cmd=$(echo "$1" | base64)
-    key=$(echo "$2" | base64)
-    multiline=$(echo "$3" | base64)
-    contents=$(echo "$4" | base64)
+    cmd=$(echo "$1" | base64 -w 0)
+    key=$(echo "$2" | base64 -w 0)
+    multiline=$(echo "$3" | base64 -w 0)
+    contents=$(echo "$4" | base64 -w 0)
     echo "$cmd
 $key
 $multiline
@@ -46,7 +46,7 @@ $contents" | /usr/lib/qubes/qrexec-client-vm "$QUBES_PASS_DOMAIN" ruddo.PassMana
 
 elif [ "$1" == "init" ] ; then
 
-    cmd=$(echo "$1" | base64)
+    cmd=$(echo "$1" | base64 -w 0)
     echo "$cmd" | /usr/lib/qubes/qrexec-client-vm "$QUBES_PASS_DOMAIN" ruddo.PassManage
 
 fi
