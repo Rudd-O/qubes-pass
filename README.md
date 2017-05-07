@@ -14,6 +14,11 @@ With this program, you can store and retrieve passwords between VMs
 without having to grant any of the VMs any special policy privileges
 other than access to the Qubes services implemented here.
 
+*Tip:* combine this program with the excellent [`qubes-pass` lookup plugin
+for Ansible Qubes](https://github.com/Rudd-O/ansible-qubes) or the
+[`pass` lookup plugin for Ansible](https://github.com/gcoop-libre/ansible-lookup-plugin-pass)
+so that you can securely manage VMs and machines that require secrets.
+
 ## Using the software
 
 These instructions assume you have installed the software.  See the
