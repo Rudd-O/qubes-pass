@@ -1,0 +1,52 @@
+#!/bin/bash
+set -e
+
+if [ -s /rw/config/pass-split-domain -a -z "$QUBES_PASS_DOMAIN" ] ; then
+    export QUBES_PASS_DOMAIN=$( cat /rw/config/pass-split-domain )
+fi
+
+if [ -z "$QUBES_PASS_DOMAIN" ] ; then
+    title="Qubes pass error"
+    msg="The QUBES_PASS_DOMAIN variable is not defined.  Either create /rw/config/pass-split-domain with the VM containing your pass setup, set the environment variable yourself, or pass -d on the command line."
+    echo "$title: $msg" >&2
+    zenity --error --text "$msg" --title "$title" &
+    exit 124
+fi
+
+if [ "$1" == "list" ] ; then
+
+    cmd=$(echo "$1" | base64)
+    echo "$cmd" | /usr/lib/qubes/qrexec-client-vm "$QUBES_PASS_DOMAIN" ruddo.PassRead
+
+elif [ "$1" == "get" ] ; then
+
+    cmd=$(echo "$1" | base64)
+    key=$(echo "$2" | base64)
+    echo "$cmd
+$key" | /usr/lib/qubes/qrexec-client-vm "$QUBES_PASS_DOMAIN" ruddo.PassRead
+
+elif [ "$1" == "get-or-generate" ] ; then
+    cmd=$(echo "$1" | base64)
+    key=$(echo "$2" | base64)
+    autogen=$(echo 1 | base64)
+    echo "$cmd
+$key
+$autogen" | /usr/lib/qubes/qrexec-client-vm "$QUBES_PASS_DOMAIN" ruddo.PassManage
+
+elif [ "$1" == "insert" ] ; then
+
+    cmd=$(echo "$1" | base64)
+    key=$(echo "$2" | base64)
+    multiline=$(echo "$3" | base64)
+    contents=$(echo "$4" | base64)
+    echo "$cmd
+$key
+$multiline
+$contents" | /usr/lib/qubes/qrexec-client-vm "$QUBES_PASS_DOMAIN" ruddo.PassManage
+
+elif [ "$1" == "init" ] ; then
+
+    cmd=$(echo "$1" | base64)
+    echo "$cmd" | /usr/lib/qubes/qrexec-client-vm "$QUBES_PASS_DOMAIN" ruddo.PassManage
+
+fi

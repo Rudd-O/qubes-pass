@@ -1,0 +1,29 @@
+#!/bin/bash
+
+set -e
+
+read -n 4096 cmd
+cmd=$(echo "$cmd" | base64 -d)
+
+if [ "$cmd" == "list" ] ; then
+
+  logger -t ruddo.PassRead "requested password list".
+  exec pass
+
+elif [ "$cmd" == "get" ] ; then
+
+  read -n 4096 entry
+  entry=$(echo "$entry" | base64 -d)
+  logger -t ruddo.PassRead "requested password entry $entry"
+
+  tmp=$(mktemp)
+  trap 'rm -f "$tmp"' EXIT
+  ret=0 ; pass -- "$entry" 2> "$tmp" || ret=$?
+  if grep -qF "$entry is not in the password store." "$tmp" ; then
+      cat "$tmp" >&2
+      exit 8
+  fi
+  cat "$tmp" >&2
+  exit $?
+
+fi

@@ -1,0 +1,124 @@
+#!/bin/bash
+
+TEMP=`getopt -o ?dmfe: -- "$@"`
+force=0
+multiline=0
+echo=0
+eval set -- "$TEMP"
+set -e
+
+usage() {
+    echo "qvm-pass usage:"
+    echo ""
+    echo "    qvm-pass [-d <passvm>] <subcommand> [arguments...]"
+    echo ""
+    echo "subcommands:"
+    echo ""
+    echo "    list"
+    echo "        Retrieves the list of keys from the pass store."
+    echo "        No subcommand accomplishes the same results"
+    echo "    get <key>"
+    echo "        Retrieves a key from the pass store."
+    echo "        If your key is not named after a subcommand, you can also"
+    echo "        get its contents by passing it as the first argument of"
+    echo "        this command, omitting the get subcommand."
+    echo "    get-or-generate <key>"
+    echo "        Retrieves a key from the pass store; creates the key"
+    echo "        with 32 characters length if it does not exist yet,"
+    echo "        and returns the generated key on standard output."
+    echo "    insert [--echo,-e | --multiline,-m] [--force,-f]  <key>"
+    echo "        Creates a key in the pass store."
+    exit 0
+}
+
+while true ; do
+    case "$1" in
+        -d)
+            case "$2" in
+                "") shift 2 ;;
+                *) export QUBES_PASS_DOMAIN="$2" ; shift 2 ;;
+            esac ;;
+        -m)
+            multiline=1 ; shift ;;
+        -f)
+            force=1 ; shift ;;
+        -e)
+            echo=1 ; shift ;;
+        "-?")
+            usage ;;
+        --) shift ; break ;;
+        *) echo "error processing options; run with -? for more information" ; exit 64 ;;
+    esac
+done
+
+case "$1" in
+    get|get-or-generate)
+        if [ "$force$multiline$echo" != "000" ] ; then
+            echo "the $1 subcommand does not accept that option; run with -? for more information" >&2 ; exit 64
+        fi
+        if [ -z "$2" ] ; then
+            echo "the $1 subcommand requires a key; run with -? for more information" >&2 ; exit 64 
+        fi
+        if [ -n "$3" ] ; then
+            echo "the $1 subcommand only accepts one argument; run with -? for more information" >&2 ; exit 64 
+        fi
+        exec qubes-pass-client "$1" "$2"
+        ;;
+    init)
+        if [ "$force$multiline$echo" != "000" ] ; then
+            echo "the $1 subcommand does not accept that option; run with -? for more information" >&2 ; exit 64
+        fi
+        if [ -n "$2" ] ; then
+            echo "the $1 subcommand does not accept any arguments; run with -? for more information" >&2 ; exit 64 
+        fi
+        exec qubes-pass-client "$1"
+        ;;
+    insert)
+        shift
+
+        if [ "$force" != "1" ] ; then
+            ret=0 ; errs=$(qubes-pass-client get "$1" >/dev/null 2>&1) || ret=$?
+            if [ "$ret" == "0" ] ; then
+                read -p "An entry already exists for $1. Overwrite it? [y/N] " response
+                if [ "$response" != "y" ] ; then exit 0 ; fi
+            elif [ "$ret" == "8" ] ; then
+                true
+            else
+                echo "$errs" >&2
+                exit $ret
+            fi
+        fi
+
+        contents=
+        if [ "$multiline" == "1" ] ; then
+            echo "Enter contents of $1 and press Ctrl+D when finished:"
+            echo ""
+            contents=$(cat)
+        elif [ "$echo" == "1" ] ; then
+            read -p "Enter password for b: " contents >&2
+        else
+            read -s -p "Enter password for b: " contents >&2
+            echo
+            read -s -p "Retype password for b: " retypedcontents >&2
+            echo
+            if [ "$retypedcontents" != "$contents" ] ; then
+                echo "Error: the entered passwords do not match."
+                exit 1
+            fi
+        fi
+
+        exec qubes-pass-client insert "$1" "$multiline" "$contents"
+        ;;
+    list)
+        if [ "$force$multiline$echo" != "000" ] ; then
+            echo "the $1 subcommand does not accept that option; run with -? for more information" >&2 ; exit 64
+        fi
+        exec qubes-pass-client list
+        ;;
+    *)
+        if [ "$force$multiline$echo" != "000" ] ; then
+            echo "the get subcommand does not accept that option; run with -? for more information" >&2 ; exit 64
+        fi
+        exec qubes-pass-client get "$1"
+        ;;
+esac

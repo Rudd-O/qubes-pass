@@ -1,0 +1,80 @@
+#!/bin/bash
+
+set -e
+
+read -n 4096 cmd
+cmd=$(echo "$cmd" | base64 -d)
+
+if [ "$cmd" == "init" ] ; then
+
+  if test -f "$HOME"/.password-store/.gpg-id ; then
+      key=$(cat "$HOME"/.password-store/.gpg-id)
+      echo "Not creating  password store already exists and uses GPG key $key." >&2
+      exit 8
+  fi
+  
+  tmp=$(mktemp)
+  trap 'rm -f "$tmp"' EXIT
+  cat > "$tmp" <<EOF
+       Key-Type: RSA
+       Key-Length: 4096
+       Name-Real: Pass store
+       Name-Email: noreply@passwordstore.org
+       Expire-Date: 0
+EOF
+  ret=0 ; out=$(gpg2 --batch --gen-key "$tmp" 2>&1) || ret=$?
+  if [ "$ret" != "0" ] ; then
+      echo "$out" >&2
+      exit "$ret"
+  fi
+  
+  key=$(echo "$out" | awk '/gpg: key .* marked as ultimately trusted/ { print $3 }')
+  pass init "$key"
+  echo "Do not forget to back up your password store regularly." >&2
+  echo "To back up your password store, back up the entire $HOSTNAME VM using Qubes backup." >&2
+  echo "Key files to backup: $HOME/.password-store and $HOME/.gnupg2" >&2
+
+elif [ "$cmd" == "get-or-generate" ] ; then
+
+  read -n 4096 entry
+  read -n 4096 autogen
+  entry=$(echo "$entry" | base64 -d)
+  autogen=$(echo "$autogen" | base64 -d)
+  
+  if [ "$autogen" == "1" ] ; then
+      ret=0 ; out=$(pass -- "$entry") || ret=$?
+      if [ "$ret" == "1" ] && echo "$out" | grep -q "not in the password store" ; then
+          logger -t ruddo.PassManage "creating password entry $entry"
+          ret=0 ; out=$(pass generate -- "$entry" 32) || ret=$?
+          if [ "$ret" == "1" ] ; then
+              echo "Password generation failed: $out"
+              exit "$ret"
+          fi
+      elif [ "$ret" != "0" ] ; then
+          echo "$out" >&2
+          exit "$ret"
+      fi
+      logger -t ruddo.PassManage "requested password entry $entry"
+      exec pass -- "$entry"
+  else
+      exit 23
+  fi
+
+elif [ "$cmd" == "insert" ] ; then
+
+  read -n 4096 entry
+  read -n 4096 multiline
+  read -n 1048576 contents
+  entry=$(echo "$entry" | base64 -d)
+  multiline=$(echo "$multiline" | base64 -d)
+  contents=$(echo "$contents" | base64 -d)
+
+  logger -t ruddo.PassManage "creating password entry $entry"
+
+  if [ "$multiline" == "1" ] ; then
+      echo "$contents" | pass insert --multiline --force -- "$entry"
+  else
+      echo "$contents" | pass insert -e --force -- "$entry"
+  fi
+
+fi
