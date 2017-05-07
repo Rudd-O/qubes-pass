@@ -1,6 +1,6 @@
 #!/bin/bash
 
-TEMP=`getopt -o ?dmfe: -- "$@"`
+TEMP=`getopt -o ?d:mfe -- "$@"`
 force=0
 multiline=0
 echo=0
