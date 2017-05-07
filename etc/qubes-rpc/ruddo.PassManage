@@ -42,7 +42,7 @@ elif [ "$cmd" == "get-or-generate" ] ; then
   autogen=$(echo "$autogen" | base64 -d)
   
   if [ "$autogen" == "1" ] ; then
-      ret=0 ; out=$(pass -- "$entry") || ret=$?
+      ret=0 ; out=$(pass -- "$entry" 2>&1) || ret=$?
       if [ "$ret" == "1" ] && echo "$out" | grep -q "not in the password store" ; then
           logger -t ruddo.PassManage "creating password entry $entry"
           ret=0 ; out=$(pass generate -- "$entry" 32) || ret=$?
