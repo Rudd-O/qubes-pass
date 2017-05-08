@@ -100,8 +100,12 @@ VM or standalone VM where you plan to store passwords.  Install the RPM with
 any VMs using this as a template, have gained the ability to securely store
 passwords in `/home/user/.password-store`.
 
-Now copy the `qubes-pass-policy-dom0-<version>.noarch.rpm` file to
-your dom0.  At this point, the default policy (`ask`) is active on
+Now power off any template VMs you've installed software into,
+as well as any VMs based on that template VM you plan to use the
+software from.
+
+Now copy the `qubes-pass-dom0-<version>.noarch.rpm` file to your dom0.
+At this point, the default policy (which is `ask`) is active on
 your Qubes OS system, and you can begin using the client.
 
 Those clever among you will have discovered that there is a `Makefile`
