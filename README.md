@@ -66,15 +66,17 @@ Run `qvm-pass -?` on a terminal to get usage information.
 
 There are three components for this software:
 
-* The client `qvm-pass-client` you install in the VMs (or their templates)
+* The client `qubes-pass` you install in the VMs (or their templates)
   where you want to manage your passwords.
-* The service `qvm-pass-service` you install in the VMs (or their templates)
+* The service `qubes-pass-service` you install in the VMs (or their templates)
   where you want to store your passwords.
-* The policy `qvm-pass-dom0` is the dom0 side of things, necessary to
+* The policy `qubes-pass-dom0` is the dom0 side of things, necessary to
   enable the services and control access from the clients to the service.
 
-First, build the software,  After cloning this repository on a suitable VM,
-run the command:
+Here's how you install `qubes-pass` on Fedora VMs (*see below for other OSes*):
+
+After cloning this repository on a suitable VM, and installing the
+`rpm-build` package onto that VM, run the command:
 
 ```
 make rpm
@@ -82,30 +84,35 @@ make rpm
 
 This will generate three installable packages on the local directory:
 
-* `qvm-pass-client-<version>.noarch.rpm`
-* `qvm-pass-service-<version>.noarch.rpm`
-* `qvm-pass-dom0-<version>.noarch.rpm`
+* `qubes-pass-<version>.noarch.rpm`
+* `qubes-pass-service-<version>.noarch.rpm`
+* `qubes-pass-dom0-<version>.noarch.rpm`
 
-Copy the `qvm-pass-client-<version>.noarch.rpm` file to the template VM
+Copy the `qubes-pass-<version>.noarch.rpm` file to the template VM
 or standalone VM where you plan to manage passwords.  Install the RPM with
 `dnf install <name of the RPM>`.  At this point, this VM, as well as
 any VMs using this as a template, have gained the ability to list
 and store passwords stored in other VMs.
 
-Now copy the `qvm-pass-service-<version>.noarch.rpm` file to the template
+Now copy the `qubes-pass-service-<version>.noarch.rpm` file to the template
 VM or standalone VM where you plan to store passwords.  Install the RPM with
 `dnf install <name of the RPM>`.  At this point, this VM, as well as
 any VMs using this as a template, have gained the ability to securely store
 passwords in `/home/user/.password-store`.
 
-Now copy the `qvm-pass-policy-dom0-<version>.noarch.rpm` file to
-your dom0.  At this point, the default policy (`ask`) is active on
+Now power off any template VMs you've installed software into,
+as well as any VMs based on that template VM you plan to use the
+software from.
+
+Now copy the `qubes-pass-dom0-<version>.noarch.rpm` file to your dom0.
+At this point, the default policy (which is `ask`) is active on
 your Qubes OS system, and you can begin using the client.
 
 Those clever among you will have discovered that there is a `Makefile`
-included, and that you can use the `Makefile` to install the software on
-other non-RPM templates.  I welcome pull requests to add support for
-other distro packages and Qubes OS templates.
+included, and that you can use the `Makefile` to install the software
+on other non-RPM, non-Fedora templates.  I welcome pull requests to add
+support for other distro packages and Qubes OS templates.  Thanks in
+advance for your help.
 
 ## Troubleshooting and debugging
 
