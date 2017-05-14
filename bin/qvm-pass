@@ -40,8 +40,11 @@ multiline=0
 echo=0
 nosymbols=
 
-while getopts :d:n:mfe? opt ; do
-    case "$opt" in
+TEMP=`getopt -o d:n:mfe? -- "$@"` || { usage ; exit 64 ; }
+eval set -- "$TEMP"
+
+while true ; do
+    case "$1" in
         -d)
             case "$2" in
                 "") shift 2 ;;
@@ -55,15 +58,8 @@ while getopts :d:n:mfe? opt ; do
             force=1 ; shift ;;
         -e)
             echo=1 ; shift ;;
-        ":")
-            echo "incorrect usage; run with -? for more information" ; exit 64 ;;
-        "?")
-            if [ "$OPTARG" != "?" ] ; then
-                usage ; exit 64 ;
-            else
-                usage ; exit 0 ;
-            fi
-            ;;
+        --)
+            shift ; break ;;
     esac
 done
 
