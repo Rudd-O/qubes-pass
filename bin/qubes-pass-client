@@ -32,7 +32,24 @@ elif [ "$1" == "get-or-generate" ] ; then
     nosymbols=$(echo "$3" | base64 -w 0)
     echo "$cmd
 $key
-$autogen" | /usr/lib/qubes/qrexec-client-vm "$QUBES_PASS_DOMAIN" ruddo.PassManage
+$autogen
+$nosymbols" | /usr/lib/qubes/qrexec-client-vm "$QUBES_PASS_DOMAIN" ruddo.PassManage
+
+elif [ "$1" == "rm" ] ; then
+    cmd=$(echo "$1" | base64 -w 0)
+    key=$(echo "$2" | base64 -w 0)
+    echo "$cmd
+$key" | /usr/lib/qubes/qrexec-client-vm "$QUBES_PASS_DOMAIN" ruddo.PassManage
+
+elif [ "$1" == "mv" -o "$1" == "cp" ] ; then
+    cmd=$(echo "$1" | base64 -w 0)
+    key=$(echo "$2" | base64 -w 0)
+    newkey=$(echo "$3" | base64 -w 0)
+    force=$(echo "$4" | base64 -w 0)
+    echo "$cmd
+$key
+$newkey
+$force" | /usr/lib/qubes/qrexec-client-vm "$QUBES_PASS_DOMAIN" ruddo.PassManage
 
 elif [ "$1" == "insert" ] ; then
 

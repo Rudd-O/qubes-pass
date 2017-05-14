@@ -1,11 +1,5 @@
 #!/bin/bash
 
-TEMP=`getopt -o ?d:n:mfe -- "$@"`
-force=0
-multiline=0
-echo=0
-nosymbols=
-eval set -- "$TEMP"
 set -e
 
 usage() {
@@ -31,11 +25,23 @@ usage() {
     echo "        during password generation."
     echo "    insert [--echo,-e | --multiline,-m] [--force,-f]  <key>"
     echo "        Creates a key in the pass store."
-    exit 0
+    echo "    rm <key>"
+    echo "        Removes a key from the pass store."
+    echo "    cp [-f] <key> <newkey>"
+    echo "        Copies a key to another key in the pass store,"
+    echo "        optionally forcefully."
+    echo "    mv [-f] <key> <newkey>"
+    echo "        Moves a key to another key in the pass store,"
+    echo "        optionally forcefully."
 }
 
-while true ; do
-    case "$1" in
+force=0
+multiline=0
+echo=0
+nosymbols=
+
+while getopts :d:n:mfe? opt ; do
+    case "$opt" in
         -d)
             case "$2" in
                 "") shift 2 ;;
@@ -49,10 +55,15 @@ while true ; do
             force=1 ; shift ;;
         -e)
             echo=1 ; shift ;;
-        "-?")
-            usage ;;
-        --) shift ; break ;;
-        *) echo "error processing options; run with -? for more information" ; exit 64 ;;
+        ":")
+            echo "incorrect usage; run with -? for more information" ; exit 64 ;;
+        "?")
+            if [ "$OPTARG" != "?" ] ; then
+                usage ; exit 64 ;
+            else
+                usage ; exit 0 ;
+            fi
+            ;;
     esac
 done
 
@@ -65,7 +76,7 @@ case "$1" in
             echo "the $1 subcommand requires a key; run with -? for more information" >&2 ; exit 64 
         fi
         if [ -n "$3" ] ; then
-            echo "the $1 subcommand only accepts one argument; run with -? for more information" >&2 ; exit 64 
+            echo "the $1 subcommand only accepts one argument; run with -? for more information" >&2 ; exit 64
         fi
         exec qubes-pass-client "$1" "$2" "$nosymbols"
         ;;
@@ -74,9 +85,36 @@ case "$1" in
             echo "the $1 subcommand does not accept that option; run with -? for more information" >&2 ; exit 64
         fi
         if [ -n "$2" ] ; then
-            echo "the $1 subcommand does not accept any arguments; run with -? for more information" >&2 ; exit 64 
+            echo "the $1 subcommand does not accept any arguments; run with -? for more information" >&2 ; exit 64
         fi
         exec qubes-pass-client "$1"
+        ;;
+    rm)
+        if [ "$force$multiline$echo$nosymbols" != "000" ] ; then
+            echo "the $1 subcommand does not accept that option; run with -? for more information" >&2 ; exit 64
+        fi
+        if [ -z "$2" ] ; then
+            echo "the $1 subcommand requires a key; run with -? for more information" >&2 ; exit 64 
+        fi
+        exec qubes-pass-client "$1" "$2"
+        ;;
+    mv)
+        if [ "$multiline$echo$nosymbols" != "000" ] ; then
+            echo "the $1 subcommand does not accept that option; run with -? for more information" >&2 ; exit 64
+        fi
+        if [ -z "$2" -o -z "$3" ] ; then
+            echo "the $1 subcommand requires two keys; run with -? for more information" >&2 ; exit 64
+        fi
+        exec qubes-pass-client "$1" "$2" "$3" "$force"
+        ;;
+    cp)
+        if [ "$multiline$echo$nosymbols" != "000" ] ; then
+            echo "the $1 subcommand does not accept that option; run with -? for more information" >&2 ; exit 64
+        fi
+        if [ -z "$2" -o -z "$3" ] ; then
+            echo "the $1 subcommand requires two keys; run with -? for more information" >&2 ; exit 64
+        fi
+        exec qubes-pass-client "$1" "$2" "$3" "$force"
         ;;
     insert)
         if [ "$nosymbols" != "" ] ; then

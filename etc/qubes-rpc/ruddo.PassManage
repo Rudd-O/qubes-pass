@@ -83,4 +83,31 @@ elif [ "$cmd" == "insert" ] ; then
       echo "$contents" | pass insert -e --force -- "$entry"
   fi
 
+elif [ "$cmd" == "rm" ] ; then
+
+  read -n 4096 entry
+  entry=$(echo "$entry" | base64 -d)
+
+  logger -t ruddo.PassManage "removing password entry $entry"
+
+  pass rm -- "$entry"
+
+elif [ "$cmd" == "mv" -o "$cmd" == "cp" ] ; then
+
+  read -n 4096 entry
+  entry=$(echo "$entry" | base64 -d)
+  read -n 4096 newentry
+  newentry=$(echo "$newentry" | base64 -d)
+  read -n 4096 force
+  force=$(echo "$force" | base64 -d)
+  if [ "$force" == "1" ] ; then
+      force=-f
+  else
+      force=
+  fi
+
+  logger -t ruddo.PassManage "$cmd password entry $entry to $entry"
+
+  pass "$cmd" $f -- "$entry" "$newentry"
+
 fi
