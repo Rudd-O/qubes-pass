@@ -28,11 +28,9 @@ $key" | /usr/lib/qubes/qrexec-client-vm "$QUBES_PASS_DOMAIN" ruddo.PassRead
 elif [ "$1" == "get-or-generate" ] ; then
     cmd=$(echo "$1" | base64 -w 0)
     key=$(echo "$2" | base64 -w 0)
-    autogen=$(echo 1 | base64 -w 0)
     nosymbols=$(echo "$3" | base64 -w 0)
     echo "$cmd
 $key
-$autogen
 $nosymbols" | /usr/lib/qubes/qrexec-client-vm "$QUBES_PASS_DOMAIN" ruddo.PassManage
 
 elif [ "$1" == "rm" ] ; then

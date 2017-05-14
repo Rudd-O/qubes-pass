@@ -37,34 +37,29 @@ EOF
 elif [ "$cmd" == "get-or-generate" ] ; then
 
   read -n 4096 entry
-  read -n 4096 autogen
   read -n 4096 nosymbols
   entry=$(echo "$entry" | base64 -d)
-  nosymbols=$(echo "nosymbols" | base64 -d)
-  
-  if [ "$autogen" == "1" ] ; then
-      ret=0 ; out=$(pass -- "$entry" 2>&1) || ret=$?
-      if [ "$ret" == "1" ] && echo "$out" | grep -q "not in the password store" ; then
-          logger -t ruddo.PassManage "creating password entry $entry"
-          ret=0
-          if [ "$nosymbols" != "" ] ; then
-              out=$(pass generate -n "$nosymbols" -- "$entry" 32) || ret=$?
-          else
-              out=$(pass generate -- "$entry" 32) || ret=$?
-          fi
-          if [ "$ret" == "1" ] ; then
-              echo "Password generation failed: $out"
-              exit "$ret"
-          fi
-      elif [ "$ret" != "0" ] ; then
-          echo "$out" >&2
-          exit "$ret"
-      fi
-      logger -t ruddo.PassManage "requested password entry $entry"
-      exec pass -- "$entry"
-  else
-      exit 23
+  nosymbols=$(echo "$nosymbols" | base64 -d)
+
+  ret=0 ; out=$(pass -- "$entry" 2>&1) || ret=$?
+  if [ "$ret" == "1" ] && echo "$out" | grep -q "not in the password store" ; then
+        logger -t ruddo.PassManage "creating password entry $entry"
+        ret=0
+        if [ "$nosymbols" != "" ] ; then
+            out=$(pass generate -n "$nosymbols" -- "$entry" 32) || ret=$?
+        else
+            out=$(pass generate -- "$entry" 32) || ret=$?
+        fi
+        if [ "$ret" == "1" ] ; then
+            echo "Password generation failed: $out"
+            exit "$ret"
+        fi
+  elif [ "$ret" != "0" ] ; then
+        echo "$out" >&2
+        exit "$ret"
   fi
+  logger -t ruddo.PassManage "requested password entry $entry"
+  exec pass -- "$entry"
 
 elif [ "$cmd" == "insert" ] ; then
 
