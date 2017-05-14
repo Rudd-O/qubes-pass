@@ -1,9 +1,10 @@
 #!/bin/bash
 
-TEMP=`getopt -o ?d:mfe -- "$@"`
+TEMP=`getopt -o ?d:n:mfe -- "$@"`
 force=0
 multiline=0
 echo=0
+nosymbols=
 eval set -- "$TEMP"
 set -e
 
@@ -22,10 +23,12 @@ usage() {
     echo "        If your key is not named after a subcommand, you can also"
     echo "        get its contents by passing it as the first argument of"
     echo "        this command, omitting the get subcommand."
-    echo "    get-or-generate <key>"
+    echo "    get-or-generate [-n symbols] <key>"
     echo "        Retrieves a key from the pass store; creates the key"
     echo "        with 32 characters length if it does not exist yet,"
     echo "        and returns the generated key on standard output."
+    echo "        The -n option excludes symbols from being used"
+    echo "        during password generation."
     echo "    insert [--echo,-e | --multiline,-m] [--force,-f]  <key>"
     echo "        Creates a key in the pass store."
     exit 0
@@ -38,6 +41,8 @@ while true ; do
                 "") shift 2 ;;
                 *) export QUBES_PASS_DOMAIN="$2" ; shift 2 ;;
             esac ;;
+        -n)
+            nosymbols="$2" ; shift 2 ;;
         -m)
             multiline=1 ; shift ;;
         -f)
@@ -62,10 +67,10 @@ case "$1" in
         if [ -n "$3" ] ; then
             echo "the $1 subcommand only accepts one argument; run with -? for more information" >&2 ; exit 64 
         fi
-        exec qubes-pass-client "$1" "$2"
+        exec qubes-pass-client "$1" "$2" "$nosymbols"
         ;;
     init)
-        if [ "$force$multiline$echo" != "000" ] ; then
+        if [ "$force$multiline$echo$nosymbols" != "000" ] ; then
             echo "the $1 subcommand does not accept that option; run with -? for more information" >&2 ; exit 64
         fi
         if [ -n "$2" ] ; then
@@ -74,6 +79,9 @@ case "$1" in
         exec qubes-pass-client "$1"
         ;;
     insert)
+        if [ "$nosymbols" != "" ] ; then
+            echo "the $1 subcommand does not accept that option; run with -? for more information" >&2 ; exit 64
+        fi
         shift
 
         if [ "$force" != "1" ] ; then
@@ -110,13 +118,13 @@ case "$1" in
         exec qubes-pass-client insert "$1" "$multiline" "$contents"
         ;;
     list)
-        if [ "$force$multiline$echo" != "000" ] ; then
+        if [ "$force$multiline$echo$nosymbols" != "000" ] ; then
             echo "the $1 subcommand does not accept that option; run with -? for more information" >&2 ; exit 64
         fi
         exec qubes-pass-client list
         ;;
     *)
-        if [ "$force$multiline$echo" != "000" ] ; then
+        if [ "$force$multiline$echo$nosymbols" != "000" ] ; then
             echo "the get subcommand does not accept that option; run with -? for more information" >&2 ; exit 64
         fi
         exec qubes-pass-client get "$1"
