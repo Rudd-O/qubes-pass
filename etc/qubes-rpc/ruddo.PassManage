@@ -45,8 +45,8 @@ elif [ "$cmd" == "get-or-generate" ] ; then
   if [ "$ret" == "1" ] && echo "$out" | grep -q "not in the password store" ; then
         logger -t ruddo.PassManage "creating password entry $entry"
         ret=0
-        if [ "$nosymbols" != "" ] ; then
-            out=$(pass generate -n "$nosymbols" -- "$entry" 32) || ret=$?
+        if [ "$nosymbols" == "1" ] ; then
+            out=$(pass generate -n -- "$entry" 32) || ret=$?
         else
             out=$(pass generate -- "$entry" 32) || ret=$?
         fi
