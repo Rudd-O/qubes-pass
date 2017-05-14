@@ -40,7 +40,7 @@ multiline=0
 echo=0
 nosymbols=0
 
-TEMP=`getopt -o d:n:mfe? -- "$@"` || { usage ; exit 64 ; }
+TEMP=`getopt -o d:nmfe? -- "$@"` || { usage ; exit 64 ; }
 eval set -- "$TEMP"
 
 while true ; do
