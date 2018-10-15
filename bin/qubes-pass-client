@@ -54,7 +54,7 @@ elif [ "$1" == "insert" ] ; then
     cmd=$(echo "$1" | base64 -w 0)
     key=$(echo "$2" | base64 -w 0)
     multiline=$(echo "$3" | base64 -w 0)
-    contents=$(echo "$4" | base64 -w 0)
+    contents=$(echo "$4") # Insert already sends its first parameters base64-encoded
     echo "$cmd
 $key
 $multiline

@@ -68,14 +68,14 @@ elif [ "$cmd" == "insert" ] ; then
   read -n 1048576 contents
   entry=$(echo "$entry" | base64 -d)
   multiline=$(echo "$multiline" | base64 -d)
-  contents=$(echo "$contents" | base64 -d)
+  contents=$(echo "$contents")
 
   logger -t ruddo.PassManage "creating password entry $entry"
 
   if [ "$multiline" == "1" ] ; then
-      echo "$contents" | pass insert --multiline --force -- "$entry"
+      echo "$contents" | base64 -d | pass insert --multiline --force -- "$entry"
   else
-      echo "$contents" | pass insert -e --force -- "$entry"
+      echo "$contents" | base64 -d | pass insert -e --force -- "$entry"
   fi
 
 elif [ "$cmd" == "rm" ] ; then

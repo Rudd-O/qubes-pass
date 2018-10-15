@@ -135,7 +135,7 @@ case "$1" in
         if [ "$multiline" == "1" ] ; then
             echo "Enter contents of $1 and press Ctrl+D when finished:"
             echo ""
-            contents=$(cat)
+            contents=$(cat | base64 -w 0)
         elif [ "$echo" == "1" ] ; then
             read -p "Enter password for $1: " contents >&2
         else
