@@ -3,7 +3,7 @@
 %define mybuildnumber %{?build_number}%{?!build_number:1}
 
 Name:           qubes-pass
-Version:        0.0.14
+Version:        0.0.15
 Release:        %{mybuildnumber}%{?dist}
 Summary:        Inter-VM pass password management for Qubes OS AppVMs and StandaloneVMs
 BuildArch:      noarch
@@ -68,7 +68,6 @@ fi
 %files
 %attr(0755, root, root) %{_bindir}/qvm-pass
 %attr(-, -, -) %{_libexecdir}/%{name}/pass
-%attr(0755, root, root) %{_bindir}/qubes-pass-client
 %doc README.md
 
 %files service
