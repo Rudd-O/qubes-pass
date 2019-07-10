@@ -3,7 +3,7 @@
 %define mybuildnumber %{?build_number}%{?!build_number:1}
 
 Name:           qubes-pass
-Version:        0.0.13
+Version:        0.0.14
 Release:        %{mybuildnumber}%{?dist}
 Summary:        Inter-VM pass password management for Qubes OS AppVMs and StandaloneVMs
 BuildArch:      noarch
@@ -13,16 +13,21 @@ URL:            https://github.com/Rudd-O/%{name}
 Source0:        https://github.com/Rudd-O/%{name}/archive/{%version}.tar.gz#/%{name}-%{version}.tar.gz
 
 BuildRequires:  make
+Requires:       python3
+Requires:       qubes-core-agent-qrexec
 
 %package service
 Summary:        Service package for Qubes OS dom0s that services %{name}
 
-Requires: pass
+Requires:       pass
+Requires:       /bin/egrep
+Requires:       coreutils
+Requires:       util-linux
 
 %package dom0
 Summary:        Policy package for Qubes OS dom0s that arbitrates %{name}
 
-Requires: qubes-core-dom0-linux
+Requires:       qubes-core-dom0-linux
 
 %description
 This package lets you setup a safe password management VM and then
