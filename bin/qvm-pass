@@ -1,166 +1,231 @@
-#!/bin/bash
+#!/usr/bin/python3 -u
 
-set -e
+import argparse
+import base64
+import getpass
+import os
+import signal
+import subprocess
+import sys
 
-usage() {
-    echo "qvm-pass usage:"
-    echo ""
-    echo "    qvm-pass [-d <passvm>] <subcommand> [arguments...]"
-    echo ""
-    echo "subcommands:"
-    echo ""
-    echo "    list"
-    echo "        Retrieves the list of keys from the pass store."
-    echo "        No subcommand accomplishes the same results"
-    echo "    get <key>"
-    echo "        Retrieves a key from the pass store."
-    echo "        If your key is not named after a subcommand, you can also"
-    echo "        get its contents by passing it as the first argument of"
-    echo "        this command, omitting the get subcommand."
-    echo "    get-or-generate [-n] <key>"
-    echo "        Retrieves a key from the pass store; creates the key"
-    echo "        with 32 characters length if it does not exist yet,"
-    echo "        and returns the generated key on standard output."
-    echo "        The -n option excludes symbols from being used"
-    echo "        during password generation."
-    echo "    insert [--echo,-e | --multiline,-m] [--force,-f]  <key>"
-    echo "        Creates a key in the pass store."
-    echo "    rm <key>"
-    echo "        Removes a key from the pass store."
-    echo "    cp [-f] <key> <newkey>"
-    echo "        Copies a key to another key in the pass store,"
-    echo "        optionally forcefully."
-    echo "    mv [-f] <key> <newkey>"
-    echo "        Moves a key to another key in the pass store,"
-    echo "        optionally forcefully."
-}
 
-force=0
-multiline=0
-echo=0
-nosymbols=0
+signal.signal(signal.SIGINT, signal.SIG_DFL)
 
-TEMP=`getopt -o d:nmfe? -- "$@"` || { usage ; exit 64 ; }
-eval set -- "$TEMP"
 
-while true ; do
-    case "$1" in
-        -d)
-            case "$2" in
-                "") shift 2 ;;
-                *) export QUBES_PASS_DOMAIN="$2" ; shift 2 ;;
-            esac ;;
-        -n)
-            nosymbols=1 ; shift ;;
-        -m)
-            multiline=1 ; shift ;;
-        -f)
-            force=1 ; shift ;;
-        -e)
-            echo=1 ; shift ;;
-        --)
-            shift ; break ;;
-    esac
-done
+usage = "\n".join([
+    "qvm-pass usage:",
+    "",
+    "    qvm-pass [-d <passvm>] [subcommand] [arguments...]",
+    "",
+    "subcommands:",
+    "",
+    "    <no subcommand>",
+    "        Retrieves the list of keys from the pass store.",
+    "    <key>",
+    "        Retrieves a key from the pass store.",
+    "    get-or-generate [-n] <key>",
+    "        Retrieves a key from the pass store; creates the key",
+    "        with 32 characters length if it does not exist yet,",
+    "        and returns the generated key on standard output.",
+    "        The -n option excludes symbols from being used",
+    "        during password generation.",
+    "    insert [--echo,-e | --multiline,-m] [--force,-f]  <key>",
+    "        Creates a key in the pass store.",
+    "    rm <key>",
+    "        Removes a key from the pass store.",
+    "    cp [-f] <key> <newkey>",
+    "        Copies a key to another key in the pass store,",
+    "        optionally forcefully.",
+    "    mv [-f] <key> <newkey>",
+    "        Moves a key to another key in the pass store,",
+    "        optionally forcefully.",
+    "    init <GPD ID> [GPG IDs...]",
+    "        Initializes the pass store.",
+])
 
-case "$1" in
-    get|get-or-generate)
-        if [ "$force$multiline$echo" != "000" ] ; then
-            echo "the $1 subcommand does not accept that option; run with -? for more information" >&2 ; exit 64
-        fi
-        if [ -z "$2" ] ; then
-            echo "the $1 subcommand requires a key; run with -? for more information" >&2 ; exit 64 
-        fi
-        if [ -n "$3" ] ; then
-            echo "the $1 subcommand only accepts one argument; run with -? for more information" >&2 ; exit 64
-        fi
-        exec qubes-pass-client "$1" "$2" "$nosymbols"
-        ;;
-    init)
-        if [ "$force$multiline$echo$nosymbols" != "0000" ] ; then
-            echo "the $1 subcommand does not accept that option; run with -? for more information" >&2 ; exit 64
-        fi
-        if [ -n "$2" ] ; then
-            echo "the $1 subcommand does not accept any arguments; run with -? for more information" >&2 ; exit 64
-        fi
-        exec qubes-pass-client "$1"
-        ;;
-    rm)
-        if [ "$force$multiline$echo$nosymbols" != "0000" ] ; then
-            echo "the $1 subcommand does not accept that option; run with -? for more information" >&2 ; exit 64
-        fi
-        if [ -z "$2" ] ; then
-            echo "the $1 subcommand requires a key; run with -? for more information" >&2 ; exit 64 
-        fi
-        exec qubes-pass-client "$1" "$2"
-        ;;
-    mv)
-        if [ "$multiline$echo$nosymbols" != "000" ] ; then
-            echo "the $1 subcommand does not accept that option; run with -? for more information" >&2 ; exit 64
-        fi
-        if [ -z "$2" -o -z "$3" ] ; then
-            echo "the $1 subcommand requires two keys; run with -? for more information" >&2 ; exit 64
-        fi
-        exec qubes-pass-client "$1" "$2" "$3" "$force"
-        ;;
-    cp)
-        if [ "$multiline$echo$nosymbols" != "000" ] ; then
-            echo "the $1 subcommand does not accept that option; run with -? for more information" >&2 ; exit 64
-        fi
-        if [ -z "$2" -o -z "$3" ] ; then
-            echo "the $1 subcommand requires two keys; run with -? for more information" >&2 ; exit 64
-        fi
-        exec qubes-pass-client "$1" "$2" "$3" "$force"
-        ;;
-    insert)
-        if [ "$nosymbols" != "0" ] ; then
-            echo "the $1 subcommand does not accept that option; run with -? for more information" >&2 ; exit 64
-        fi
-        shift
 
-        if [ "$force" != "1" ] ; then
-            ret=0 ; errs=$(qubes-pass-client get "$1" >/dev/null 2>&1) || ret=$?
-            if [ "$ret" == "0" ] ; then
-                read -p "An entry already exists for $1. Overwrite it? [y/N] " response
-                if [ "$response" != "y" ] ; then exit 0 ; fi
-            elif [ "$ret" == "8" ] ; then
-                true
-            else
-                echo "$errs" >&2
-                exit $ret
-            fi
-        fi
+force = 0
+multiline = 0
+echo = 0
+nosymbols = 0
 
-        contents=
-        if [ "$multiline" == "1" ] ; then
-            echo "Enter contents of $1 and press Ctrl+D when finished:"
-            echo ""
-            contents=$(cat | base64 -w 0)
-        elif [ "$echo" == "1" ] ; then
-            read -p "Enter password for $1: " contents >&2
-        else
-            read -s -p "Enter password for $1: " contents >&2
-            echo
-            read -s -p "Retype password for $1: " retypedcontents >&2
-            echo
-            if [ "$retypedcontents" != "$contents" ] ; then
-                echo "Error: the entered passwords do not match."
-                exit 1
-            fi
-        fi
 
-        exec qubes-pass-client insert "$1" "$multiline" "$contents"
-        ;;
-    list)
-        if [ "$force$multiline$echo$nosymbols" != "0000" ] ; then
-            echo "the $1 subcommand does not accept that option; run with -? for more information" >&2 ; exit 64
-        fi
-        exec qubes-pass-client list
-        ;;
-    *)
-        if [ "$force$multiline$echo$nosymbols" != "0000" ] ; then
-            echo "the get subcommand does not accept that option; run with -? for more information" >&2 ; exit 64
-        fi
-        exec qubes-pass-client get "$1"
-        ;;
-esac
+parser = argparse.ArgumentParser(
+    description="A Qubes-RPC inter-vm client for the pass password manager."#,
+    #usage=usage
+)
+parser.add_argument("-d", "--dest-vm", type=str,
+                    help="Set the Qubes domain to consult.",
+                    default=os.environ.get('QUBES_PASS_DOMAIN', ""))
+
+firstarg = None
+if len(sys.argv) == 2 and not sys.argv[1].startswith("-"):
+    firstarg = sys.argv[1]
+elif len(sys.argv) == 3 and sys.argv[2] == "--":
+    firstarg = sys.argv[2]
+
+if firstarg not in (None, "mv", "cp", "get-or-generate", "init", "rm"):
+    # The user just specified a key in the command line.  Omit subparser setup.
+    parser.add_argument("key", help="key to retrieve from pass store", type=str, nargs='?')
+else:
+    subparsers = parser.add_subparsers(
+        help='sub-command help (run subcommand with --help as first parameter)'
+    )
+
+    _parsers = {}
+    def _newcmd(name, desc):
+        if name not in _parsers:
+            _parsers[name] = subparsers.add_parser(name, help=desc)
+            _parsers[name].set_defaults(subcommand=name)
+        return _parsers[name]
+
+    for cmd in [("mv", "renames / moves a key in the store"),
+                ("cp", "renames / copies a key in the store to a new location")]:
+        p = _newcmd(*cmd)
+        p.add_argument("original", help="original name of the key", type=str)
+        p.add_argument("new", help="new name for the original key", type=str)
+
+    p = _newcmd("init", "initializes a new pass store if none exists")
+    p.add_argument("gpgid", type=str, nargs="+",
+                   help="list of GPG IDs to initialize the store with")
+
+    p = _newcmd("rm", "removes a key in the store")
+    p.add_argument("key", help="name of the key to be removed", type=str)
+
+    p = _newcmd("get-or-generate",
+                "retrieves a key from the store, generating one if it does not exist")
+    p.add_argument("key", help="name of the key to be retrieved / generated", type=str)
+
+    p = _newcmd("insert",
+                "inserts a new key into the pass store")
+    p.add_argument("key", help="name of the key to be inserted", type=str)
+
+    for p in ["get-or-generate"]:
+        _parsers[p].add_argument("-n", "--no-symbols", action="store_true",
+                                help="no symbols in generated password",
+                                default=False)
+    for p in ["mv", "cp", "rm", "insert"]:
+        _parsers[p].add_argument("-f", "--force", action="store_true",
+                                help="force overwriting / removing passwords instead of prompting",
+                                default=False)
+    for p in ["insert"]:
+        _parsers[p].add_argument("-m", "--multiline", action="store_true",
+                                help="accept multi-line input, ending it with Ctrl+D (EOF)",
+                                default=False)
+        _parsers[p].add_argument("-e", "--echo", action="store_true",
+                                help="echo the password to the console during entry",
+                                default=False)
+
+
+def usage(string, *args):
+    if args:
+        string = string % args
+    print(string, file=sys.stderr)
+    parser.print_help(sys.stderr)
+    sys.exit(2)
+
+
+opts = parser.parse_args()
+if not opts.dest_vm:
+    try:
+        with open("/rw/config/pass-split-domain") as domain:
+            opts.dest_vm = domain.readlines()[0].strip()
+    except FileNotFoundError:
+        pass
+if not opts.dest_vm:
+        usage("error: the QUBES_PASS_DOMAIN variable is not defined."
+              "  Either create /rw/config/pass-split-domain with the VM containing"
+              " your pass setup, set the environment variable yourself,"
+              " or pass -d on the command line.",)
+
+
+PASS_READ = "ruddo.PassRead"
+PASS_MANAGE = "ruddo.PassManage"
+
+
+def send_args(rpc, *args, **kwargs):
+    cmd = ['/usr/lib/qubes/qrexec-client-vm', opts.dest_vm, rpc]
+#     print(cmd, file=sys.stderr)
+    p = subprocess.Popen(cmd, stdin=subprocess.PIPE, **kwargs)
+    for arg in args:
+#         print(arg, file=sys.stderr)
+        if isinstance(arg, str):
+            arg = base64.b64encode(arg.encode("utf-8")) + b"\n"
+        else:
+            arg = base64.b64encode(arg) + b"\n"
+        p.stdin.write(arg)
+    p.stdin.close()
+    return p.wait()
+
+
+def pass_read(*args, **kwargs):
+    return send_args(PASS_READ, *args, **kwargs)
+
+
+def pass_manage(*args, **kwargs):
+    return send_args(PASS_MANAGE, *args, **kwargs)
+
+
+if not hasattr(opts, "subcommand") and opts.key is None:
+    sys.exit(pass_read("list"))
+elif not hasattr(opts, "subcommand"):
+    sys.exit(pass_read("get", opts.key))
+elif opts.subcommand in ("mv", "cp"):
+    if not opts.force and sys.stdin.isatty():
+        with open(os.devnull, "w") as null:
+            if pass_read("get", opts.new, stdout=null, stderr=null) == 0:
+                sys.stderr.write("%s: overwrite %s? " % (opts.subcommand, opts.new))
+                sys.stdin.read(1)
+    sys.exit(pass_manage(opts.subcommand, opts.original, opts.new, str(int(opts.force))))
+elif opts.subcommand == "init":
+    sys.exit(pass_manage(opts.subcommand, *opts.gpgid))
+elif opts.subcommand == "rm":
+    if not opts.force and sys.stdin.isatty():
+        with open(os.devnull, "w") as null:
+            if pass_read("get", opts.key, stdout=null, stderr=null) == 0:
+                sys.stderr.write("Are you sure you would like to delete %s? [y/N] " % (opts.key,))
+                ans = sys.stdin.readline().strip()
+                if ans and ans[0] in "yY":
+                    pass
+                else:
+                    sys.exit(1)
+    sys.exit(pass_manage(opts.subcommand, opts.key))
+elif opts.subcommand == "get-or-generate":
+    sys.exit(pass_manage(opts.subcommand, opts.key, str(int(opts.no_symbols))))
+elif opts.subcommand == "insert":
+    if not opts.force and sys.stdin.isatty():
+        with open(os.devnull, "w") as null:
+            if pass_read("get", opts.key, stdout=null, stderr=null) == 0:
+                sys.stderr.write("An entry already exists for %s. Overwrite it? [y/N] " % (opts.key,))
+                ans = sys.stdin.readline().strip()
+                if ans and ans[0] in "yY":
+                    pass
+                else:
+                    sys.exit(1)
+    if opts.multiline:
+        print("Enter contents of %s and press Ctrl+D when finished:\n" % (opts.key, ), file=sys.stderr)
+        contents = sys.stdin.buffer.read()
+    else:
+        def promptpw(string):
+            if sys.stdin.isatty():
+                if opts.echo:
+                    sys.stderr.write(string)
+                    pw = sys.stdin.buffer.readline()
+                else:
+                    pw = getpass.getpass(string)
+            else:
+                pw = sys.stdin.buffer.readline()
+            if not sys.stdin.isatty():
+                print()
+            if pw and pw[-1] == b"\n":
+                pw = pw[:-1]
+            return pw
+        contents = promptpw("Enter password for %s: " % (opts.key,))
+        pw2 = promptpw("Retype password for %s: " % (opts.key,))
+        if contents != pw2:
+            if sys.stdin.isatty():
+                print("Error: the entered passwords do not match.", file=sys.stderr)
+            sys.exit(1)
+    sys.exit(pass_manage(opts.subcommand, opts.key, str(int(opts.multiline)), contents))
+else:
+    assert 0, "not reached"

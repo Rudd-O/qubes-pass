@@ -1,6 +1,7 @@
 #!/bin/bash
 
 set -e
+set -o pipefail
 
 read -n 4096 cmd
 cmd=$(echo "$cmd" | base64 -d)
@@ -9,27 +10,17 @@ if [ "$cmd" == "init" ] ; then
 
   if test -f "$HOME"/.password-store/.gpg-id ; then
       key=$(cat "$HOME"/.password-store/.gpg-id)
-      echo "Not creating  password store already exists and uses GPG key $key." >&2
+      echo "Not creating -- password store already exists and uses GPG key $key." >&2
       exit 8
   fi
-  
-  tmp=$(mktemp)
-  trap 'rm -f "$tmp"' EXIT
-  cat > "$tmp" <<EOF
-       Key-Type: RSA
-       Key-Length: 4096
-       Name-Real: Pass store
-       Name-Email: noreply@passwordstore.org
-       Expire-Date: 0
-EOF
-  ret=0 ; out=$(gpg2 --batch --gen-key "$tmp" 2>&1) || ret=$?
-  if [ "$ret" != "0" ] ; then
-      echo "$out" >&2
-      exit "$ret"
-  fi
-  
-  key=$(echo "$out" | awk '/gpg: key .* marked as ultimately trusted/ { print $3 }')
-  pass init "$key"
+
+  keys=()
+  while read -n 128 key ; do
+    key=$(echo "$key" | base64 -d)
+    keys+=("$key")
+  done
+
+  pass init "${keys[@]}"
   echo "Do not forget to back up your password store regularly." >&2
   echo "To back up your password store, back up the entire $HOSTNAME VM using Qubes backup." >&2
   echo "Key files to backup: $HOME/.password-store and $HOME/.gnupg2" >&2
@@ -65,17 +56,15 @@ elif [ "$cmd" == "insert" ] ; then
 
   read -n 4096 entry
   read -n 4096 multiline
-  read -n 1048576 contents
   entry=$(echo "$entry" | base64 -d)
   multiline=$(echo "$multiline" | base64 -d)
-  contents=$(echo "$contents")
 
   logger -t ruddo.PassManage "creating password entry $entry"
 
   if [ "$multiline" == "1" ] ; then
-      echo "$contents" | base64 -d | pass insert --multiline --force -- "$entry"
+      base64 -d - | pass insert --multiline --force -- "$entry" | egrep -v '(when finished:|^$)'
   else
-      echo "$contents" | base64 -d | pass insert -e --force -- "$entry"
+      base64 -d - | pass insert -e --force -- "$entry"
   fi
 
 elif [ "$cmd" == "rm" ] ; then
