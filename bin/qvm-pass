@@ -64,15 +64,19 @@ parser.add_argument("-d", "--dest-vm", type=str,
                     help="Set the Qubes domain to consult.",
                     default=os.environ.get('QUBES_PASS_DOMAIN', ""))
 
-firstarg = None
+cmd = None
 if len(sys.argv) == 2 and not sys.argv[1].startswith("-"):
-    firstarg = sys.argv[1]
-elif len(sys.argv) == 3 and sys.argv[2] == "--":
-    firstarg = sys.argv[2]
+    cmd = "get"
+elif len(sys.argv) == 3 and sys.argv[1] == "--":
+    cmd = "get"
+elif len(sys.argv) == 1:
+    cmd = "list"
 
-if firstarg not in (None, "mv", "cp", "get-or-generate", "init", "rm"):
-    # The user just specified a key in the command line.  Omit subparser setup.
+if cmd in ("get", "list"):
+    # The user just specified a key, or no key, in the command line.
+    # Omit subparser setup.
     parser.add_argument("key", help="key to retrieve from pass store", type=str, nargs='?')
+    parser.set_defaults(subcommand='get-or-list')
 else:
     subparsers = parser.add_subparsers(
         help='sub-command help (run subcommand with --help as first parameter)'
@@ -189,10 +193,11 @@ def pass_manage(*args, **kwargs):
     return send_args(PASS_MANAGE, *args, **kwargs)
 
 
-if not hasattr(opts, "subcommand") and opts.key is None:
-    sys.exit(pass_read("list"))
-elif not hasattr(opts, "subcommand"):
-    sys.exit(pass_read("get", opts.key))
+if opts.subcommand == "get-or-list":
+    if opts.key:
+        sys.exit(pass_read("get", opts.key))
+    else:
+        sys.exit(pass_read("list"))
 elif opts.subcommand in ("mv", "cp"):
     if not opts.force and sys.stdin.isatty():
         with open(os.devnull, "w") as null:
