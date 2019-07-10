@@ -34,6 +34,10 @@ These instructions assume you have installed the software.  See the
 Step 1: decide which VM you'll use to manage passwords, and which
 VM you'll use to store passwords in.
 
+In the password store VM, make sure that the GPG key you'll use to
+encrypt the pass store is available there.  Make a note of the GPG
+ID of that key.
+
 In the password manager VM, create the file `/rw/config/pass-split-domain`
 and add the name of the password store VM as the first and only
 line of the file.
@@ -41,20 +45,20 @@ line of the file.
 Now, from the password manager VM, run the command:
 
 ```
-qvm-pass init
+qvm-pass init <GPG key ID available in the password store VM>
 ```
 
-This step will create the necessary GPG keys and password store database
-in the password store VM.  You'll receive a Qubes policy prompt asking
-you whether to allow your password manager VM to access `ruddo.PassManage`
-— it is safe to say yes.  You will then receive a password prompt from
-GPG, confirming the creation of the key and the password that, in the
-future, will be used to encrypt and access the password store.
+This step will initialize the password store database in the password store
+VM.  You'll receive a Qubes policy prompt asking you whether to allow your
+password manager VM to access `ruddo.PassManage` — it is safe to say yes.
+You will then receive a confirmation that the pass store has been created
+and is encrypting keys with the specified GPG key ID.
 
 Note: don't forget to back your password store VM up regularly!
+Both your GPG ID and your encrypted passwords are there.
 
-At this point, you are ready to `list`, `insert` and run other operations
-in your password store VM.  `list` and `get` operations will use the
+At this point, you are ready to list, `insert` and run other operations
+in your password store VM.  list and get operations will use the
 service `ruddo.PassRead`, while management operations will use the
 service `ruddo.PassManage`, which allows you to set different policies
 for different VMs based on what you want these VMs to be able to do with
