@@ -56,7 +56,7 @@ elif [ "$cmd" == "insert" ] ; then
   logger -t ruddo.PassManage "creating password entry $entry"
 
   if [ "$multiline" == "1" ] ; then
-      base64 -d - | pass insert --multiline --force -- "$entry" | egrep -v '(when finished:|^$)'
+      base64 -d - | pass insert --multiline --force -- "$entry" | (egrep -v '(when finished:|^$)' || true)
   else
       base64 -d - | pass insert -e --force -- "$entry"
   fi
