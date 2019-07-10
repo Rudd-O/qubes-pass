@@ -23,9 +23,15 @@ usage = "\n".join([
     "        Retrieves the list of keys from the pass store.",
     "    <key>",
     "        Retrieves a key from the pass store.",
-    "    get-or-generate [-n] <key>",
+    "    generate [-n] [-f] <key> [pass-length]",
     "        Retrieves a key from the pass store; creates the key",
-    "        with 32 characters length if it does not exist yet,",
+    "        with 25 characters length if it does not exist yet,",
+    "        and returns the generated key on standard output.",
+    "        The -n option excludes symbols from being used",
+    "        during password generation.",
+    "    get-or-generate [-n] <key> [pass-length]",
+    "        Retrieves a key from the pass store; creates the key",
+    "        with 25 characters length if it does not exist yet,",
     "        and returns the generated key on standard output.",
     "        The -n option excludes symbols from being used",
     "        during password generation.",
@@ -93,18 +99,25 @@ else:
     p.add_argument("key", help="name of the key to be removed", type=str)
 
     p = _newcmd("get-or-generate",
-                "retrieves a key from the store, generating one if it does not exist")
+                "retrieves a key from the password store, generating one if it does not exist")
     p.add_argument("key", help="name of the key to be retrieved / generated", type=str)
+
+    p = _newcmd("generate",
+                "generates a key in the password store")
+    p.add_argument("key", help="name of the key to be generated", type=str)
 
     p = _newcmd("insert",
                 "inserts a new key into the pass store")
     p.add_argument("key", help="name of the key to be inserted", type=str)
 
-    for p in ["get-or-generate"]:
+    for p in ["get-or-generate", "generate"]:
+        _parsers[p].add_argument("pass_length", type=int, nargs='?',
+                                help="number of characters in generated password",
+                                default=25)
         _parsers[p].add_argument("-n", "--no-symbols", action="store_true",
                                 help="no symbols in generated password",
                                 default=False)
-    for p in ["mv", "cp", "rm", "insert"]:
+    for p in ["mv", "cp", "rm", "insert", "generate"]:
         _parsers[p].add_argument("-f", "--force", action="store_true",
                                 help="force overwriting / removing passwords instead of prompting",
                                 default=False)
@@ -146,6 +159,11 @@ PASS_MANAGE = "ruddo.PassManage"
 def send_args(rpc, *args, **kwargs):
     cmd = ['/usr/lib/qubes/qrexec-client-vm', opts.dest_vm, rpc]
 #     print(cmd, file=sys.stderr)
+    return_stdout = kwargs.get("return_stdout", False)
+    if "return_stdout" in kwargs:
+        del kwargs["return_stdout"]
+        kwargs['stdout'] = subprocess.PIPE
+
     p = subprocess.Popen(cmd, stdin=subprocess.PIPE, **kwargs)
     for arg in args:
 #         print(arg, file=sys.stderr)
@@ -154,8 +172,13 @@ def send_args(rpc, *args, **kwargs):
         else:
             arg = base64.b64encode(arg) + b"\n"
         p.stdin.write(arg)
+    if return_stdout:
+        out, unused_err = p.communicate('')
     p.stdin.close()
-    return p.wait()
+    if return_stdout:
+        return p.wait(), out
+    else:
+        return p.wait()
 
 
 def pass_read(*args, **kwargs):
@@ -191,17 +214,59 @@ elif opts.subcommand == "rm":
                     sys.exit(1)
     sys.exit(pass_manage(opts.subcommand, opts.key))
 elif opts.subcommand == "get-or-generate":
-    sys.exit(pass_manage(opts.subcommand, opts.key, str(int(opts.no_symbols))))
+    with open(os.devnull, "w") as null:
+        ret, stdout = pass_read("get", opts.key, return_stdout=True, stderr=null)
+    if ret == 8:
+        # Not there.
+        with open(os.devnull, "w") as null:
+            ret = pass_manage("generate", opts.key, str(int(opts.no_symbols)), str(int(opts.pass_length)), stdout=null)
+        if ret != 0:
+            sys.exit(ret)
+        sys.exit(pass_read("get", opts.key))
+    elif ret == 0:
+        # There.
+        sys.stdout.buffer.write(stdout)
+        sys.exit(ret)
+    else:
+        # Woops.
+        sys.exit(ret)
+elif opts.subcommand == "generate":
+    doit = lambda: sys.exit(pass_manage(opts.subcommand, opts.key, str(int(opts.no_symbols)), str(int(opts.pass_length))))
+    with open(os.devnull, "w") as null:
+        ret = pass_read("get", opts.key, stdout=null, stderr=null)
+    if ret == 8:
+        # Not there.
+        doit()
+    elif ret == 0:
+        # There:
+        if not opts.force and sys.stdin.isatty():
+            sys.stderr.write("An entry already exists for %s. Overwrite it? [y/N] " % (opts.key,))
+            ans = sys.stdin.readline().strip()
+            if ans and ans[0] in "yY":
+                doit()
+            else:
+                sys.exit(1)
+        else:
+            doit()
+    else:
+        sys.exit(ret)
 elif opts.subcommand == "insert":
     if not opts.force and sys.stdin.isatty():
         with open(os.devnull, "w") as null:
-            if pass_read("get", opts.key, stdout=null, stderr=null) == 0:
+            ret = pass_read("get", opts.key, stdout=null, stderr=null)
+            if ret == 0:
+                # There.  Confirm.
                 sys.stderr.write("An entry already exists for %s. Overwrite it? [y/N] " % (opts.key,))
                 ans = sys.stdin.readline().strip()
                 if ans and ans[0] in "yY":
                     pass
                 else:
                     sys.exit(1)
+            elif ret == 8:
+                # Not there.  Fall through.
+                pass
+            else:
+                sys.exit(ret)
     if opts.multiline:
         print("Enter contents of %s and press Ctrl+D when finished:\n" % (opts.key, ), file=sys.stderr)
         contents = sys.stdin.buffer.read()

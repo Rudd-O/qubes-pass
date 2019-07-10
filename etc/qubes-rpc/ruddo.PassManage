@@ -25,32 +25,26 @@ if [ "$cmd" == "init" ] ; then
   echo "To back up your password store, back up the entire $HOSTNAME VM using Qubes backup." >&2
   echo "Key files to backup: $HOME/.password-store and $HOME/.gnupg2" >&2
 
-elif [ "$cmd" == "get-or-generate" ] ; then
+elif [ "$cmd" == "generate" ] ; then
 
   read -n 4096 entry
   read -n 4096 nosymbols
+  read -n 4096 numchars
   entry=$(echo "$entry" | base64 -d)
   nosymbols=$(echo "$nosymbols" | base64 -d)
+  numchars=$(echo "$numchars" | base64 -d)
 
-  ret=0 ; out=$(pass -- "$entry" 2>&1) || ret=$?
-  if [ "$ret" == "1" ] && echo "$out" | grep -q "not in the password store" ; then
-        logger -t ruddo.PassManage "creating password entry $entry"
-        ret=0
-        if [ "$nosymbols" == "1" ] ; then
-            out=$(pass generate -n -- "$entry" 32) || ret=$?
-        else
-            out=$(pass generate -- "$entry" 32) || ret=$?
-        fi
-        if [ "$ret" == "1" ] ; then
-            echo "Password generation failed: $out"
-            exit "$ret"
-        fi
-  elif [ "$ret" != "0" ] ; then
-        echo "$out" >&2
-        exit "$ret"
+  logger -t ruddo.PassManage "creating password entry $entry"
+  ret=0
+  if [ "$nosymbols" == "1" ] ; then
+    pass generate -n -f -- "$entry" "$numchars" || ret=$?
+  else
+    pass generate -f -- "$entry" "$numchars" || ret=$?
   fi
-  logger -t ruddo.PassManage "requested password entry $entry"
-  exec pass -- "$entry"
+  if [ "$ret" != "0" ] ; then
+    logger -t ruddo.PassManage "Password generation failed: $out" >&2
+    exit "$ret"
+  fi
 
 elif [ "$cmd" == "insert" ] ; then
 
