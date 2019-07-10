@@ -45,13 +45,13 @@ have VMs that have the %{name} package installed.
 
 %build
 # variables must be kept in sync with install
-make DESTDIR=$RPM_BUILD_ROOT BINDIR=%{_bindir} SYSCONFDIR=%{_sysconfdir}
+make DESTDIR=$RPM_BUILD_ROOT BINDIR=%{_bindir} SYSCONFDIR=%{_sysconfdir} LIBEXECDIR=%{_libexecdir}
 
 %install
 rm -rf $RPM_BUILD_ROOT
 # variables must be kept in sync with build
 for target in install-client install-service install-dom0; do
-    make $target DESTDIR=$RPM_BUILD_ROOT BINDIR=%{_bindir} SYSCONFDIR=%{_sysconfdir}
+    make $target DESTDIR=$RPM_BUILD_ROOT BINDIR=%{_bindir} SYSCONFDIR=%{_sysconfdir} LIBEXECDIR=%{_libexecdir}
 done
 
 %check
@@ -62,6 +62,7 @@ fi
 
 %files
 %attr(0755, root, root) %{_bindir}/qvm-pass
+%attr(-, -, -) %{_libexecdir}/%{name}/pass
 %attr(0755, root, root) %{_bindir}/qubes-pass-client
 %doc README.md
 

@@ -1,4 +1,5 @@
 BINDIR=/usr/bin
+LIBEXECDIR=/usr/libexec
 SYSCONFDIR=/etc
 DESTDIR=
 PROGNAME=qubes-pass
@@ -19,6 +20,10 @@ srpm: dist
 install-client:
 	install -Dm 755 bin/qvm-pass -t $(DESTDIR)/$(BINDIR)/
 	install -Dm 755 bin/qubes-pass-client -t $(DESTDIR)/$(BINDIR)/
+	mkdir -p $(DESTDIR)/$(LIBEXECDIR)/qubes-pass/
+	# Support the trick of using PATH=/usr/libexec/qubes-pass:$PATH to fool
+	# programs which invoke the pass store command line program.
+	ln -sf $(BINDIR)/qvm-pass $(DESTDIR)/$(LIBEXECDIR)/qubes-pass/pass
 
 install-service:
 	install -Dm 644 etc/qubes-rpc/ruddo.PassRead -t $(DESTDIR)/$(SYSCONFDIR)/qubes-rpc/

@@ -62,6 +62,11 @@ the password store VM.
 
 Run `qvm-pass -?` on a terminal to get usage information.
 
+*Tip:* fool programs that use `pass` into using `qvm-pass` instead.
+After installation, you can `export PATH=/usr/libexec/qubes-pass:$PATH`
+prior to invoking said programs, to indoce programs (which invoke the
+pass store command line program) to invoke `qvm-pass` instead.
+
 ## Installing the software
 
 There are three components for this software:
