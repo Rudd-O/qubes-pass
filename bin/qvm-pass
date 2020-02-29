@@ -69,6 +69,10 @@ if len(sys.argv) == 2 and not sys.argv[1].startswith("-"):
     cmd = "get"
 elif len(sys.argv) == 3 and sys.argv[1] == "--":
     cmd = "get"
+elif len(sys.argv) == 4 and not sys.argv[3].startswith("--"):
+    cmd = "get"
+elif len(sys.argv) == 5 and sys.argv[3] == "--":
+    cmd = "get"
 elif len(sys.argv) == 1:
     cmd = "list"
 
