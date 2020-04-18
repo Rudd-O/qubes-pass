@@ -19,7 +19,7 @@ elif [ "$cmd" == "get" ] ; then
   tmp=$(mktemp)
   trap 'rm -f "$tmp"' EXIT
   ret=0 ; pass -- "$entry" 2> "$tmp" || ret=$?
-  if grep -qF "$entry is not in the password store." "$tmp" ; then
+  if grep -qF -- "$entry is not in the password store." "$tmp" ; then
       cat "$tmp" >&2
       exit 8
   fi

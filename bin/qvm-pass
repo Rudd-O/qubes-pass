@@ -56,108 +56,85 @@ echo = 0
 nosymbols = 0
 
 
-parser = argparse.ArgumentParser(
-    description="A Qubes-RPC inter-vm client for the pass password manager."#,
-    #usage=usage
+parser_for_discrimination = argparse.ArgumentParser(
+    description="(nobody sees this)"#
 )
-parser.add_argument("-d", "--dest-vm", type=str,
-                    help="Set the Qubes domain to consult.",
-                    default=os.environ.get('QUBES_PASS_DOMAIN', ""))
+parser_for_discrimination.add_argument("-d", "--dest-vm", type=str,
+                                       help="Set the Qubes domain to operate with.",
+                                       default=os.environ.get('QUBES_PASS_DOMAIN', ""))
 
-cmd = None
-if len(sys.argv) == 2 and not sys.argv[1].startswith("-"):
-    cmd = "get"
-elif len(sys.argv) == 3 and sys.argv[1] == "--":
-    cmd = "get"
-elif len(sys.argv) == 4 and not sys.argv[3].startswith("--"):
-    cmd = "get"
-elif len(sys.argv) == 5 and sys.argv[3] == "--":
-    cmd = "get"
-elif len(sys.argv) == 1:
-    cmd = "list"
 
-if cmd in ("get", "list"):
-    # The user just specified a key, or no key, in the command line.
-    # Omit subparser setup.
-    parser.add_argument("key", help="key to retrieve from pass store", type=str, nargs='?')
-    parser.set_defaults(subcommand='get-or-list')
-else:
-    subparsers = parser.add_subparsers(
-        help='sub-command help (run subcommand with --help as first parameter)'
-    )
+parser_for_subcommands = argparse.ArgumentParser(
+    description="A Qubes-RPC inter-vm client for the pass password manager.",
+    usage=usage
+)
+parser_for_subcommands.add_argument("-d", "--dest-vm", type=str,
+                                    help="Set the Qubes domain to operate with.",
+                                    default=os.environ.get('QUBES_PASS_DOMAIN', ""))
 
-    _parsers = {}
-    def _newcmd(name, desc):
-        if name not in _parsers:
-            _parsers[name] = subparsers.add_parser(name, help=desc)
-            _parsers[name].set_defaults(subcommand=name)
-        return _parsers[name]
+subparsers = parser_for_subcommands.add_subparsers(
+    help='sub-command help (run subcommand with --help as first parameter)',
+    required=False,
+)
 
-    for cmd in [("mv", "renames / moves a key in the store"),
-                ("cp", "renames / copies a key in the store to a new location")]:
-        p = _newcmd(*cmd)
-        p.add_argument("original", help="original name of the key", type=str)
-        p.add_argument("new", help="new name for the original key", type=str)
+_parsers = {}
+def _newcmd(name, desc):
+    if name not in _parsers:
+        _parsers[name] = subparsers.add_parser(name, help=desc)
+        _parsers[name].set_defaults(subcommand=name)
+    return _parsers[name]
 
-    p = _newcmd("init", "initializes a new pass store if none exists")
-    p.add_argument("gpgid", type=str, nargs="+",
-                   help="list of GPG IDs to initialize the store with")
+for cmd in [("mv", "renames / moves a key in the store"),
+            ("cp", "renames / copies a key in the store to a new location")]:
+    p = _newcmd(*cmd)
+    p.add_argument("original", help="original name of the key", type=str)
+    p.add_argument("new", help="new name for the original key", type=str)
 
-    p = _newcmd("rm", "removes a key in the store")
-    p.add_argument("key", help="name of the key to be removed", type=str)
+p = _newcmd("init", "initializes a new pass store if none exists")
+p.add_argument("gpgid", type=str, nargs="+",
+                help="list of GPG IDs to initialize the store with")
 
-    p = _newcmd("get-or-generate",
-                "retrieves a key from the password store, generating one if it does not exist")
-    p.add_argument("key", help="name of the key to be retrieved / generated", type=str)
+p = _newcmd("rm", "removes a key in the store")
+p.add_argument("key", help="name of the key to be removed", type=str)
 
-    p = _newcmd("generate",
-                "generates a key in the password store")
-    p.add_argument("key", help="name of the key to be generated", type=str)
+p = _newcmd("get-or-generate",
+            "retrieves a key from the password store, generating one if it does not exist")
+p.add_argument("key", help="name of the key to be retrieved / generated", type=str)
 
-    p = _newcmd("insert",
-                "inserts a new key into the pass store")
-    p.add_argument("key", help="name of the key to be inserted", type=str)
+p = _newcmd("generate",
+            "generates a key in the password store")
+p.add_argument("key", help="name of the key to be generated", type=str)
 
-    for p in ["get-or-generate", "generate"]:
-        _parsers[p].add_argument("pass_length", type=int, nargs='?',
-                                help="number of characters in generated password",
-                                default=25)
-        _parsers[p].add_argument("-n", "--no-symbols", action="store_true",
-                                help="no symbols in generated password",
-                                default=False)
-    for p in ["mv", "cp", "rm", "insert", "generate"]:
-        _parsers[p].add_argument("-f", "--force", action="store_true",
-                                help="force overwriting / removing passwords instead of prompting",
-                                default=False)
-    for p in ["insert"]:
-        _parsers[p].add_argument("-m", "--multiline", action="store_true",
-                                help="accept multi-line input, ending it with Ctrl+D (EOF)",
-                                default=False)
-        _parsers[p].add_argument("-e", "--echo", action="store_true",
-                                help="echo the password to the console during entry",
-                                default=False)
+p = _newcmd("insert",
+            "inserts a new key into the pass store")
+p.add_argument("key", help="name of the key to be inserted", type=str)
+
+for p in ["get-or-generate", "generate"]:
+    _parsers[p].add_argument("pass_length", type=int, nargs='?',
+                            help="number of characters in generated password",
+                            default=25)
+    _parsers[p].add_argument("-n", "--no-symbols", action="store_true",
+                            help="no symbols in generated password",
+                            default=False)
+for p in ["mv", "cp", "rm", "insert", "generate"]:
+    _parsers[p].add_argument("-f", "--force", action="store_true",
+                            help="force overwriting / removing passwords instead of prompting",
+                            default=False)
+for p in ["insert"]:
+    _parsers[p].add_argument("-m", "--multiline", action="store_true",
+                            help="accept multi-line input, ending it with Ctrl+D (EOF)",
+                            default=False)
+    _parsers[p].add_argument("-e", "--echo", action="store_true",
+                            help="echo the password to the console during entry",
+                            default=False)
 
 
 def usage(string, *args):
     if args:
         string = string % args
     print(string, file=sys.stderr)
-    parser.print_help(sys.stderr)
+    parser_for_subcommands.print_help(sys.stderr)
     sys.exit(2)
-
-
-opts = parser.parse_args()
-if not opts.dest_vm:
-    try:
-        with open("/rw/config/pass-split-domain") as domain:
-            opts.dest_vm = domain.readlines()[0].strip()
-    except FileNotFoundError:
-        pass
-if not opts.dest_vm:
-        usage("error: the QUBES_PASS_DOMAIN variable is not defined."
-              "  Either create /rw/config/pass-split-domain with the VM containing"
-              " your pass setup, set the environment variable yourself,"
-              " or pass -d on the command line.",)
 
 
 PASS_READ = "ruddo.PassRead"
@@ -196,6 +173,29 @@ def pass_read(*args, **kwargs):
 def pass_manage(*args, **kwargs):
     return send_args(PASS_MANAGE, *args, **kwargs)
 
+
+if not any(x in sys.argv[1:] for x in ['--help', '-h', '-?']):
+    opts, args = parser_for_discrimination.parse_known_args()
+
+    if not opts.dest_vm:
+        try:
+            with open("/rw/config/pass-split-domain") as domain:
+                opts.dest_vm = domain.readlines()[0].strip()
+        except FileNotFoundError:
+            pass
+    if not opts.dest_vm:
+            usage("error: the QUBES_PASS_DOMAIN variable is not defined."
+                "  Either create /rw/config/pass-split-domain with the VM containing"
+                " your pass setup, set the environment variable yourself,"
+                " or pass -d on the command line.",)
+
+    if len(args) == 0 or (len(args) == 1 and args[0] == "--"):
+        sys.exit(pass_read("list"))
+    elif len(args) == 1 or (len(args) == 2 and args[0] == "--"):
+        sys.exit(pass_read("get", args[-1]))
+
+opts = parser_for_subcommands.parse_args()
+args = None
 
 if opts.subcommand == "get-or-list":
     if opts.key:
