@@ -197,6 +197,18 @@ if not any(x in sys.argv[1:] for x in ['--help', '-h', '-?']):
 opts = parser_for_subcommands.parse_args()
 args = None
 
+if not opts.dest_vm:
+    try:
+        with open("/rw/config/pass-split-domain") as domain:
+            opts.dest_vm = domain.readlines()[0].strip()
+    except FileNotFoundError:
+        pass
+    if not opts.dest_vm:
+        usage("error: the QUBES_PASS_DOMAIN variable is not defined."
+            "  Either create /rw/config/pass-split-domain with the VM containing"
+            " your pass setup, set the environment variable yourself,"
+            " or pass -d on the command line.",)
+
 if opts.subcommand == "get-or-list":
     if opts.key:
         sys.exit(pass_read("get", opts.key))
