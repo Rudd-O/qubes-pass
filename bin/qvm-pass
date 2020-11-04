@@ -189,9 +189,10 @@ if not any(x in sys.argv[1:] for x in ['--help', '-h', '-?']):
                 " your pass setup, set the environment variable yourself,"
                 " or pass -d on the command line.",)
 
-    if len(args) == 0 or (len(args) == 1 and args[0] == "--"):
+    show = len(args) > 0 and (args[0] == "--" or args[0] == "ls" or args[0] == "list" or args[0] == "show")
+    if len(args) == 0 or (len(args) == 1 and show):
         sys.exit(pass_read("list"))
-    elif len(args) == 1 or (len(args) == 2 and args[0] == "--"):
+    elif len(args) == 1 or (len(args) == 2 and show):
         sys.exit(pass_read("get", args[-1]))
 
 opts = parser_for_subcommands.parse_args()
