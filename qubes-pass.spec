@@ -3,7 +3,7 @@
 %define mybuildnumber %{?build_number}%{?!build_number:1}
 
 Name:           qubes-pass
-Version:        0.0.21
+Version:        0.0.22
 Release:        %{mybuildnumber}%{?dist}
 Summary:        Inter-VM pass password management for Qubes OS AppVMs and StandaloneVMs
 BuildArch:      noarch
@@ -71,8 +71,8 @@ fi
 %doc README.md
 
 %files service
-%attr(0644, root, root) %{_sysconfdir}/qubes-rpc/ruddo.PassRead
-%attr(0644, root, root) %{_sysconfdir}/qubes-rpc/ruddo.PassManage
+%attr(0755, root, root) %{_sysconfdir}/qubes-rpc/ruddo.PassRead
+%attr(0755, root, root) %{_sysconfdir}/qubes-rpc/ruddo.PassManage
 
 %files dom0
 %config(noreplace) %attr(0664, root, qubes) %{_sysconfdir}/qubes-rpc/policy/ruddo.PassRead
