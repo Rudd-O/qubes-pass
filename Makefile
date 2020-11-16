@@ -25,8 +25,8 @@ install-client:
 	ln -sf $(BINDIR)/qvm-pass $(DESTDIR)/$(LIBEXECDIR)/qubes-pass/pass
 
 install-service:
-	install -Dm 644 etc/qubes-rpc/ruddo.PassRead -t $(DESTDIR)/$(SYSCONFDIR)/qubes-rpc/
-	install -Dm 644 etc/qubes-rpc/ruddo.PassManage -t $(DESTDIR)/$(SYSCONFDIR)/qubes-rpc/
+	install -Dm 755 etc/qubes-rpc/ruddo.PassRead -t $(DESTDIR)/$(SYSCONFDIR)/qubes-rpc/
+	install -Dm 755 etc/qubes-rpc/ruddo.PassManage -t $(DESTDIR)/$(SYSCONFDIR)/qubes-rpc/
 
 install-dom0:
 	install -Dm 664 etc/qubes-rpc/policy/ruddo.PassRead -t $(DESTDIR)/$(SYSCONFDIR)/qubes-rpc/policy/
