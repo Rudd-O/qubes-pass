@@ -142,7 +142,10 @@ PASS_MANAGE = "ruddo.PassManage"
 
 
 def send_args(rpc, *args, **kwargs):
-    cmd = ['/usr/lib/qubes/qrexec-client-vm', opts.dest_vm, rpc]
+    cmd = ['/usr/lib/qubes/qrexec-client-vm',
+            '--no-filter-escape-chars-stdout',
+            '--no-filter-escape-chars-stderr',
+            opts.dest_vm, rpc]
 #     print(cmd, file=sys.stderr)
     return_stdout = kwargs.get("return_stdout", False)
     if "return_stdout" in kwargs:
