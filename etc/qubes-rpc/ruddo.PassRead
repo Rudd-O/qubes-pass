@@ -3,6 +3,10 @@
 # xterm-256color seems to be the qubes default
 # for gnome-term and Xterm
 #
+# FIXME: the correct fix is to transmit the TERM
+# variable from the client in the send_args()
+# function of qvm-pass.
+#
 export TERM="xterm-256color"
 
 set -e
