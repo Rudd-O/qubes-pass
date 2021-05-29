@@ -7,6 +7,40 @@ import os
 import signal
 import subprocess
 import sys
+from ctypes import get_errno
+import fcntl
+import time
+import errno
+
+debug_lvl = 0
+
+def warn(*msg, prefix='Warning'):
+    print('%s:' % prefix, *msg, file=sys.stderr)
+
+def debug(lvl, *msg):
+    global debug_lvl
+    if lvl < debug_lvl:
+        warn(*msg, prefix='Debug')
+
+def error(*msg, prefix='Error', rc=1):
+    warn(*msg, prefix=prefix)
+    sys.exit(rc)
+
+def sys_warn(*msg, prefix='Warning', rc=0):
+    if rc == 0: rc = get_errno()
+    print("%s: %s:" % (prefix, os.strerror(rc)), *msg, file=sys.stderr)
+    return rc
+
+def sys_error(*msg, prefix='Error', rc=0):
+    sys.exit(sys_warn(*msg, prefix=prefix, rc=rc))
+
+
+def test0():
+    warn('Hello', 'world!')
+    sys_warn('Hello', 'world!', rc=12)
+    sys_warn('Hello', 'world!', rc=-1)
+    sys_warn('Hello', 'world!', rc=1000)
+    debug(0, 'thats all')
 
 
 signal.signal(signal.SIGINT, signal.SIG_DFL)
@@ -21,9 +55,11 @@ usage = "\n".join([
     "",
     "    <no subcommand>",
     "        Retrieves the list of keys from the pass store.",
-    "    <key>",
-    "        Retrieves a key from the pass store.",
-    "    generate [-n] [-f] <key> [pass-length]",
+    "    [--clip,-c] <key>",
+    "        Retrieves a key from the pass store,",
+    "        and optionally put it on the clipboard.",
+    "        If put on the clipboard, it will be cleared in 45 seconds.",
+    "    generate [--clip,-c] [-n] [-f] <key> [pass-length]",
     "        Retrieves a key from the pass store; creates the key",
     "        with 25 characters length if it does not exist yet,",
     "        and returns the generated key on standard output.",
@@ -55,7 +91,6 @@ multiline = 0
 echo = 0
 nosymbols = 0
 
-
 parser_for_discrimination = argparse.ArgumentParser(
     description="(nobody sees this)"#
 )
@@ -63,6 +98,9 @@ parser_for_discrimination.add_argument("-d", "--dest-vm", type=str,
                                        help="Set the Qubes domain to operate with.",
                                        default=os.environ.get('QUBES_PASS_DOMAIN', ""))
 
+parser_for_discrimination.add_argument("-c", "--clip", action="count",
+                                       help="copy to clipboard",
+                                       default=0)
 
 parser_for_subcommands = argparse.ArgumentParser(
     description="A Qubes-RPC inter-vm client for the pass password manager.",
@@ -104,6 +142,8 @@ p.add_argument("key", help="name of the key to be retrieved / generated", type=s
 p = _newcmd("generate",
             "generates a key in the password store")
 p.add_argument("key", help="name of the key to be generated", type=str)
+p.add_argument("-c", "--clip", action="count",
+               help="copy to clipboard", default=0)
 
 p = _newcmd("insert",
             "inserts a new key into the pass store")
@@ -140,31 +180,151 @@ def usage(string, *args):
 PASS_READ = "ruddo.PassRead"
 PASS_MANAGE = "ruddo.PassManage"
 
+def clip_handler(signum, frame):
+    debug(0, 'Signal handler called with signal', signum)
+    raise OSError(errno.ETIMEDOUT, "Times up!")
+
+def do_clip(out):
+    try:
+        import pyperclip as clip
+
+        clip.set_clipboard("xclip")
+        if not clip.is_available():
+            error("Not able to post to clipboard.  Is `xclip` installed?", rc=32)
+    except ModuleNotFoundError:
+        error("pyperclip python3 module not found.  No clip support available.", rc=32)
+        pass
+
+    lckf = "/var/run/user/%s/ruddo.clip" % os.getuid()
+
+    while True:
+        try:
+            lck = os.open(lckf, os.O_CREAT | os.O_EXCL | os.O_RDWR)
+            # fcntl.flock(lck, fcntl.LOCK_EX)
+            pid = os.fork()
+            if pid < 0:
+                # is this even possible, or does it throw an exception?
+                sys_error("cannot fork")
+            if pid != 0:
+                # parent
+                os.close(lck)
+                sys.exit(0)
+
+            # I'm just sort of paranoid so I will set an atexit handler
+            # to remove the file.
+            # Have to be careful so as not to remove someone else's instance
+            cleanup = lambda: os.unlink(lckf)
+            import atexit
+
+            try:
+                atexit.register(cleanup)
+
+                signal.signal(signal.SIGALRM, clip_handler)
+                lok = os.fdopen(lck, "wb", buffering=0)
+                lok.write(str(os.getpid()).encode())
+                # we keep the file open while we sleep
+
+                clip.copy(out)
+
+                signal.alarm(45)
+                while True:
+                    signal.pause()
+                assert 0, "not reached"
+            except OSError as e:
+                if e.errno != errno.ETIMEDOUT:
+                    error("funny exception: %r" % e, e)
+
+                signal.signal(signal.SIGALRM, signal.SIG_IGN)
+
+                # either the alarm rang or some other party goosed us
+                # if the clip is the same, clear it.
+                if clip.paste() == out:
+                    clip.copy("")
+                os.unlink(lckf)
+                atexit.unregister(cleanup)
+                sys.exit(0)
+            assert 0, "not reached"
+        except (OSError, IOError) as e:
+            # failed to create.
+            # see if we can open, and use the PID therein to
+            # get the other party to retire
+            try:
+                lck = os.open(lckf, os.O_EXCL | os.O_RDWR)
+                fcntl.flock(lck, fcntl.LOCK_EX)
+                lok = os.fdopen(lck, "rb", buffering=0)
+                pid = lok.read(8)
+                if len(pid) > 0:
+                    try:
+                        pid = int(pid)
+                    except:
+                        pid = 0
+                else:
+                    pid = 0
+
+                if pid <= 0:
+                    os.unlink(lckf)
+                else:
+                    try:
+                        debug(0, "kill pid: %d" % pid)
+                        os.kill(pid, signal.SIGALRM)
+                        time.sleep(.01)
+                    except OSError as e:
+                        if e.errno == errno.ESRCH:
+                            # doesn't seem to be one of ours
+                            os.unlink(lckf)
+                        else:
+                            debug(0, "kill threw an exception: %r" % e, e)
+                            lok.close()
+                            raise e
+                        pass
+                    pass
+                lok.close()
+                pass
+            except (OSError, IOError) as e:
+                sys_warn("Something funny happened: %r", e, rc=e.errno)
+                continue
+            pass
+        pass
+    assert 0, "not reached"
+
 
 def send_args(rpc, *args, **kwargs):
+    clip = 0
     cmd = ['/usr/lib/qubes/qrexec-client-vm',
             '--no-filter-escape-chars-stdout',
             '--no-filter-escape-chars-stderr',
             opts.dest_vm, rpc]
-#     print(cmd, file=sys.stderr)
     return_stdout = kwargs.get("return_stdout", False)
     if "return_stdout" in kwargs:
         del kwargs["return_stdout"]
         kwargs['stdout'] = subprocess.PIPE
 
+    if "clip" in kwargs:
+        clip = kwargs["clip"]
+        del kwargs["clip"]
+
+    if clip > 0:
+        kwargs['stdout'] = subprocess.PIPE
+
     p = subprocess.Popen(cmd, stdin=subprocess.PIPE, **kwargs)
     for arg in args:
-#         print(arg, file=sys.stderr)
         if isinstance(arg, str):
             arg = base64.b64encode(arg.encode("utf-8")) + b"\n"
         else:
             arg = base64.b64encode(arg) + b"\n"
         p.stdin.write(arg)
-    if return_stdout:
+    if return_stdout or clip > 0:
         out, unused_err = p.communicate('')
     p.stdin.close()
+
     if return_stdout:
         return p.wait(), out
+    elif clip > 0:
+        out = out.decode("utf-8").strip('\n').split('\n')
+        if clip <= len(out):
+            do_clip(out[clip-1])
+        else:
+            error("Only %d lines in entry, and line %d requested" % (len(out), clip))
     else:
         return p.wait()
 
@@ -196,7 +356,7 @@ if not any(x in sys.argv[1:] for x in ['--help', '-h', '-?']):
     if len(args) == 0 or (len(args) == 1 and show):
         sys.exit(pass_read("list"))
     elif len(args) == 1 or (len(args) == 2 and show):
-        sys.exit(pass_read("get", args[-1]))
+        sys.exit(pass_read("get", args[-1], clip=opts.clip))
 
 opts = parser_for_subcommands.parse_args()
 args = None
@@ -215,7 +375,7 @@ if not opts.dest_vm:
 
 if opts.subcommand == "get-or-list":
     if opts.key:
-        sys.exit(pass_read("get", opts.key))
+        sys.exit(pass_read("get", opts.key, clip=opts.clip))
     else:
         sys.exit(pass_read("list"))
 elif opts.subcommand in ("mv", "cp"):
@@ -247,7 +407,7 @@ elif opts.subcommand == "get-or-generate":
             ret = pass_manage("generate", opts.key, str(int(opts.no_symbols)), str(int(opts.pass_length)), stdout=null)
         if ret != 0:
             sys.exit(ret)
-        sys.exit(pass_read("get", opts.key))
+        sys.exit(pass_read("get", opts.key, clip=opts.clip))
     elif ret == 0:
         # There.
         sys.stdout.buffer.write(stdout)
