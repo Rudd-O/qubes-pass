@@ -416,25 +416,32 @@ elif opts.subcommand == "get-or-generate":
         # Woops.
         sys.exit(ret)
 elif opts.subcommand == "generate":
-    doit = lambda: sys.exit(pass_manage(opts.subcommand, opts.key, str(int(opts.no_symbols)), str(int(opts.pass_length))))
     with open(os.devnull, "w") as null:
         ret = pass_read("get", opts.key, stdout=null, stderr=null)
-    if ret == 8:
-        # Not there.
-        doit()
-    elif ret == 0:
-        # There:
-        if not opts.force and sys.stdin.isatty():
-            sys.stderr.write("An entry already exists for %s. Overwrite it? [y/N] " % (opts.key,))
-            ans = sys.stdin.readline().strip()
-            if ans and ans[0] in "yY":
-                doit()
-            else:
+        if ret == 0:
+            # There:
+            if not opts.force and sys.stdin.isatty():
+                sys.stderr.write("An entry already exists for %s. Overwrite it? [y/N] " % (opts.key,))
+                ans = sys.stdin.readline().strip()
+                if not (ans and ans[0] in "yY"):
+                    sys.exit(1)
+                    pass
+                pass
+            elif not sys.stdin.isatty() and not opts.force:
+                print("<%s> entry exists. Use `-f` or `--force` to overwrite" % (opts.key,))
                 sys.exit(1)
-        else:
-            doit()
-    else:
+                pass
+            pass
+
+        ret = pass_manage(opts.subcommand, opts.key
+                          , str(int(opts.no_symbols)), str(int(opts.pass_length))
+                          , stdout=null)
+        if ret == 0:
+            ret = pass_read("get", opts.key, clip=opts.clip)
+            pass
         sys.exit(ret)
+        pass
+    pass
 elif opts.subcommand == "insert":
     if not opts.force and sys.stdin.isatty():
         with open(os.devnull, "w") as null:
