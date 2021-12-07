@@ -19,9 +19,9 @@ usage = "\n".join([
     "",
     "subcommands:",
     "",
-    "    <no subcommand>",
+    "    [ls|list|show]",
     "        Retrieves the list of keys from the pass store.",
-    "    <key>",
+    "    [show] <key>",
     "        Retrieves a key from the pass store.",
     "    generate [-n] [-f] <key> [pass-length]",
     "        Retrieves a key from the pass store; creates the key",
@@ -50,18 +50,14 @@ usage = "\n".join([
 ])
 
 
-force = 0
-multiline = 0
-echo = 0
-nosymbols = 0
-
-
 parser_for_discrimination = argparse.ArgumentParser(
-    description="(nobody sees this)"#
+    description="(nobody sees this)"
 )
 parser_for_discrimination.add_argument("-d", "--dest-vm", type=str,
                                        help="Set the Qubes domain to operate with.",
                                        default=os.environ.get('QUBES_PASS_DOMAIN', ""))
+parser_for_discrimination.add_argument("arguments", nargs='*',
+                                       help="the rest of the arguments")
 
 
 parser_for_subcommands = argparse.ArgumentParser(
@@ -78,9 +74,10 @@ subparsers = parser_for_subcommands.add_subparsers(
 )
 
 _parsers = {}
-def _newcmd(name, desc):
+def _newcmd(name, desc, aliases=None):
     if name not in _parsers:
-        _parsers[name] = subparsers.add_parser(name, help=desc)
+        kwargs = {"aliases": aliases} if aliases else {}
+        _parsers[name] = subparsers.add_parser(name, help=desc, **kwargs)
         _parsers[name].set_defaults(subcommand=name)
     return _parsers[name]
 
@@ -100,6 +97,14 @@ p.add_argument("key", help="name of the key to be removed", type=str)
 p = _newcmd("get-or-generate",
             "retrieves a key from the password store, generating one if it does not exist")
 p.add_argument("key", help="name of the key to be retrieved / generated", type=str)
+
+p = _newcmd("show",
+            "shows existing password")
+p.add_argument("key", help="name of the key to be retrieved", type=str, nargs='?')
+
+p = _newcmd("ls",
+            "lists passwords",
+            aliases=["list"])
 
 p = _newcmd("generate",
             "generates a key in the password store")
@@ -127,6 +132,10 @@ for p in ["insert"]:
     _parsers[p].add_argument("-e", "--echo", action="store_true",
                             help="echo the password to the console during entry",
                             default=False)
+
+
+known_subparsers = [x for x in parser_for_subcommands._actions if isinstance(x, argparse._SubParsersAction)][0]
+subcommands = known_subparsers.choices.keys()
 
 
 def usage(string, *args):
@@ -177,29 +186,14 @@ def pass_manage(*args, **kwargs):
     return send_args(PASS_MANAGE, *args, **kwargs)
 
 
-if not any(x in sys.argv[1:] for x in ['--help', '-h', '-?']):
-    opts, args = parser_for_discrimination.parse_known_args()
+arguments = sys.argv[1:]
+global_opts, args = parser_for_discrimination.parse_known_args(arguments)
+if len(global_opts.arguments) == 0:
+    arguments = ["ls"] + arguments
+elif len(global_opts.arguments) == 1 and global_opts.arguments[0] not in subcommands:
+    arguments = ["show"] + arguments
+opts = parser_for_subcommands.parse_args(arguments)
 
-    if not opts.dest_vm:
-        try:
-            with open("/rw/config/pass-split-domain") as domain:
-                opts.dest_vm = domain.readlines()[0].strip()
-        except FileNotFoundError:
-            pass
-    if not opts.dest_vm:
-            usage("error: the QUBES_PASS_DOMAIN variable is not defined."
-                "  Either create /rw/config/pass-split-domain with the VM containing"
-                " your pass setup, set the environment variable yourself,"
-                " or pass -d on the command line.",)
-
-    show = len(args) > 0 and (args[0] == "--" or args[0] == "ls" or args[0] == "list" or args[0] == "show")
-    if len(args) == 0 or (len(args) == 1 and show):
-        sys.exit(pass_read("list"))
-    elif len(args) == 1 or (len(args) == 2 and show):
-        sys.exit(pass_read("get", args[-1]))
-
-opts = parser_for_subcommands.parse_args()
-args = None
 
 if not opts.dest_vm:
     try:
@@ -213,11 +207,12 @@ if not opts.dest_vm:
             " your pass setup, set the environment variable yourself,"
             " or pass -d on the command line.",)
 
-if opts.subcommand == "get-or-list":
-    if opts.key:
-        sys.exit(pass_read("get", opts.key))
-    else:
-        sys.exit(pass_read("list"))
+if opts.subcommand == "ls" or (opts.subcommand == "show" and opts.key is None):
+    # User requested ls, or no argument, or show with no argument.
+    sys.exit(pass_read("list"))
+elif opts.subcommand == "show":
+    # User requested a password, or show with an argument.
+    sys.exit(pass_read("get", opts.key))
 elif opts.subcommand in ("mv", "cp"):
     if not opts.force and sys.stdin.isatty():
         with open(os.devnull, "w") as null:
