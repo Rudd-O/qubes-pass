@@ -337,13 +337,14 @@ if not "--help" in arguments and not "-h" in arguments and not "-?" in arguments
     ):
         global_opts.arguments = ["show"] + global_opts.arguments
 arguments = global_opts.arguments
+global_opts
 opts = parser_for_subcommands.parse_args(arguments)
 
 
-if not opts.dest_vm:
+if not global_opts.dest_vm:
     try:
         with open("/rw/config/pass-split-domain") as domain:
-            opts.dest_vm = domain.readlines()[0].strip()
+            global_opts.dest_vm = domain.readlines()[0].strip()
     except FileNotFoundError:
         pass
     if not opts.dest_vm:
@@ -353,6 +354,7 @@ if not opts.dest_vm:
             " your pass setup, set the environment variable yourself,"
             " or pass -d on the command line.",
         )
+opts.dest_vm = global_opts.dest_vm
 
 if opts.subcommand == "ls" or (opts.subcommand == "show" and opts.key is None):
     # User requested ls, or no argument, or show with no argument.
