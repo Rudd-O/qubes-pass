@@ -3,7 +3,7 @@
 %define mybuildnumber %{?build_number}%{?!build_number:1}
 
 Name:           qubes-pass
-Version:        0.0.25
+Version:        0.0.26
 Release:        %{mybuildnumber}%{?dist}
 Summary:        Inter-VM pass password management for Qubes OS AppVMs and StandaloneVMs
 BuildArch:      noarch
@@ -79,23 +79,5 @@ fi
 %config(noreplace) %attr(0664, root, qubes) %{_sysconfdir}/qubes-rpc/policy/ruddo.PassManage
 
 %changelog
-* Sat Apr 18 2020 Manuel Amador (Rudd-O) <rudd-o@rudd-o.com>
+* Sat Dec 19 2021 Manuel Amador (Rudd-O) <rudd-o@rudd-o.com>
 - Correct issues with argument parsing.
-
-* Sun Mar 07 2016 Manuel Amador (Rudd-O) <rudd-o@rudd-o.com>
-- Fixed bug in get-or-generate subcommand.
-
-* Sun Mar 07 2016 Manuel Amador (Rudd-O) <rudd-o@rudd-o.com>
-- Fixed long passwords.
-
-* Sun Mar 07 2016 Manuel Amador (Rudd-O) <rudd-o@rudd-o.com>
-- Fixed UI string when prompting for password.
-
-* Sun Mar 07 2016 Manuel Amador (Rudd-O) <rudd-o@rudd-o.com>
-- Fixed getopt processing of target VM.
-
-* Sun Mar 07 2016 Manuel Amador (Rudd-O) <rudd-o@rudd-o.com>
-- Fixed slight permissions issue in policies.
-
-* Sun Mar 07 2016 Manuel Amador (Rudd-O) <rudd-o@rudd-o.com>
-- Initial release.

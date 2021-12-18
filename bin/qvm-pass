@@ -337,7 +337,6 @@ if not "--help" in arguments and not "-h" in arguments and not "-?" in arguments
     ):
         global_opts.arguments = ["show"] + global_opts.arguments
 arguments = global_opts.arguments
-assert 0, arguments
 opts = parser_for_subcommands.parse_args(arguments)
 
 
