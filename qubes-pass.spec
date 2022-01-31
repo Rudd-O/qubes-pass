@@ -79,5 +79,5 @@ fi
 %config(noreplace) %attr(0664, root, qubes) %{_sysconfdir}/qubes-rpc/policy/ruddo.PassManage
 
 %changelog
-* Sat Dec 19 2021 Manuel Amador (Rudd-O) <rudd-o@rudd-o.com>
-- Correct issues with argument parsing.
+* Mon Jan 31 2022 Manuel Amador (Rudd-O) <rudd-o@rudd-o.com>
+- Correct issues with argument parsing again.
