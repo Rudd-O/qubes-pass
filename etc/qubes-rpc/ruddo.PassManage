@@ -15,10 +15,18 @@ set -o pipefail
 read -n 4096 cmd
 cmd=$(echo "$cmd" | base64 -d)
 
-if [ "$cmd" == "init" ] ; then
+# Try per-domain directories
+PASSWORD_STORE_DIR="$HOME/password-store/$QREXEC_REMOTE_DOMAIN"
+if [ ! -f "$PASSWORD_STORE_DIR/.gpg-id" -a "$cmd" != "domain-init" ]; then
+  # Fallback to default directory
+  PASSWORD_STORE_DIR="$HOME/.password-store"
+fi
+export PASSWORD_STORE_DIR
 
-  if test -f "$HOME"/.password-store/.gpg-id ; then
-      key=$(cat "$HOME"/.password-store/.gpg-id)
+if [ "$cmd" == "init" -o "$cmd" == "domain-init" ] ; then
+
+  if test -f "$PASSWORD_STORE_DIR/.gpg-id" ; then
+      key=$(cat "$PASSWORD_STORE_DIR/.gpg-id")
       echo "Not creating -- password store already exists and uses GPG key $key." >&2
       exit 8
   fi
