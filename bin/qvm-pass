@@ -328,17 +328,20 @@ def pass_manage(*args, **kwargs):
 
 
 arguments = sys.argv[1:]
-if not "--help" in arguments and not "-h" in arguments and not "-?" in arguments:
-    global_opts, args = parser_for_discrimination.parse_known_args(arguments)
-    if len(global_opts.arguments) == 0:
-        global_opts.arguments = ["ls"] + global_opts.arguments + args
-    elif (
-        len(global_opts.arguments) == 1 and global_opts.arguments[0] not in subcommands
-    ):
-        global_opts.arguments = ["show"] + global_opts.arguments + args
-else:
+if "--help" in arguments or "-h" in arguments or "-?" in arguments:
     parser_for_subcommands.parse_known_args(arguments)
-arguments = global_opts.arguments
+    sys.exit(os.EX_USAGE)
+
+
+global_opts, args = parser_for_discrimination.parse_known_args(arguments)
+if len(global_opts.arguments) == 0:
+    global_opts.arguments = ["ls"] + global_opts.arguments + args
+elif (
+    len(global_opts.arguments) == 1 and global_opts.arguments[0] not in subcommands
+):
+    global_opts.arguments = ["show"] + global_opts.arguments + args
+
+arguments = global_opts.arguments + args
 opts = parser_for_subcommands.parse_args(arguments)
 
 
@@ -353,7 +356,7 @@ if not global_opts.dest_vm:
             "error: the QUBES_PASS_DOMAIN variable is not defined."
             "  Either create /rw/config/pass-split-domain with the VM containing"
             " your pass setup, set the environment variable yourself,"
-            " or pass -d on the command line.",
+            " or pass -d on the command line.\n",
         )
 opts.dest_vm = global_opts.dest_vm
 
