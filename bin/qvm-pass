@@ -65,6 +65,7 @@ usage_string = (
 shell_functions = """
 X_SELECTION="${PASSWORD_STORE_X_SELECTION:-clipboard}"
 CLIP_TIME="${PASSWORD_STORE_CLIP_TIME:-45}"
+BASE64="base64"
 
 clip() {
 	if [[ -n $WAYLAND_DISPLAY ]]; then
