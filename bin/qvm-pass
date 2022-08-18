@@ -17,43 +17,46 @@ except ImportError:
 signal.signal(signal.SIGINT, signal.SIG_DFL)
 
 
-usage = "\n".join(
-    [
-        "qvm-pass usage:",
-        "",
-        "    qvm-pass [-d <passvm>] [subcommand] [arguments...]",
-        "",
-        "subcommands (try qvm-pass subcommand --help for more):",
-        "",
-        "    [ls|list|show]",
-        "        Retrieves the list of keys from the pass store.",
-        "    [show] [-c] <key>",
-        "        Retrieves a key from the pass store.",
-        "    generate [-n] [-f] <key> [pass-length]",
-        "        Retrieves a key from the pass store; creates the key",
-        "        with 25 characters length if it does not exist yet,",
-        "        and returns the generated key on standard output.",
-        "        The -n option excludes symbols from being used",
-        "        during password generation.",
-        "    get-or-generate [-n] <key> [pass-length]",
-        "        Retrieves a key from the pass store; creates the key",
-        "        with 25 characters length if it does not exist yet,",
-        "        and returns the generated key on standard output.",
-        "        The -n option excludes symbols from being used",
-        "        during password generation.",
-        "    insert [--echo,-e | --multiline,-m] [--force,-f]  <key>",
-        "        Creates a key in the pass store.",
-        "    rm <key>",
-        "        Removes a key from the pass store.",
-        "    cp [-f] <key> <newkey>",
-        "        Copies a key to another key in the pass store,",
-        "        optionally forcefully.",
-        "    mv [-f] <key> <newkey>",
-        "        Moves a key to another key in the pass store,",
-        "        optionally forcefully.",
-        "    init <GPD ID> [GPG IDs...]",
-        "        Initializes the pass store.",
-    ]
+usage_string = (
+    "\n".join(
+        [
+            "qvm-pass usage:",
+            "",
+            "    qvm-pass [-d <passvm>] [subcommand] [arguments...]",
+            "",
+            "subcommands (try qvm-pass subcommand --help for more):",
+            "",
+            "    [ls|list|show]",
+            "        Retrieves the list of keys from the pass store.",
+            "    [show] [-c] <key>",
+            "        Retrieves a key from the pass store.",
+            "    generate [-n] [-f] <key> [pass-length]",
+            "        Retrieves a key from the pass store; creates the key",
+            "        with 25 characters length if it does not exist yet,",
+            "        and returns the generated key on standard output.",
+            "        The -n option excludes symbols from being used",
+            "        during password generation.",
+            "    get-or-generate [-n] <key> [pass-length]",
+            "        Retrieves a key from the pass store; creates the key",
+            "        with 25 characters length if it does not exist yet,",
+            "        and returns the generated key on standard output.",
+            "        The -n option excludes symbols from being used",
+            "        during password generation.",
+            "    insert [--echo,-e | --multiline,-m] [--force,-f]  <key>",
+            "        Creates a key in the pass store.",
+            "    rm <key>",
+            "        Removes a key from the pass store.",
+            "    cp [-f] <key> <newkey>",
+            "        Copies a key to another key in the pass store,",
+            "        optionally forcefully.",
+            "    mv [-f] <key> <newkey>",
+            "        Moves a key to another key in the pass store,",
+            "        optionally forcefully.",
+            "    init <GPD ID> [GPG IDs...]",
+            "        Initializes the pass store.",
+        ]
+    )
+    + "\n"
 )
 
 
@@ -153,7 +156,7 @@ parser_for_discrimination.add_argument(
 
 parser_for_subcommands = argparse.ArgumentParser(
     description="A Qubes-RPC inter-vm client for the pass password manager.",
-    usage=usage,
+    usage=usage_string,
 )
 parser_for_subcommands.add_argument(
     "-d",
@@ -325,6 +328,9 @@ def pass_read(*args, **kwargs):
 
 def pass_manage(*args, **kwargs):
     return send_args(PASS_MANAGE, *args, **kwargs)
+
+
+# -------------------- Begin ----------------------
 
 
 arguments = sys.argv[1:]
