@@ -340,16 +340,15 @@ if "--help" in arguments or "-h" in arguments or "-?" in arguments:
 
 
 global_opts, args = parser_for_discrimination.parse_known_args(arguments)
+
 if len(global_opts.arguments) == 0:
     global_opts.arguments = ["ls"] + global_opts.arguments + args
-elif (
-    len(global_opts.arguments) == 1 and global_opts.arguments[0] not in subcommands
-):
+elif len(global_opts.arguments) == 1 and global_opts.arguments[0] not in subcommands:
     global_opts.arguments = ["show"] + global_opts.arguments + args
+else:
+    global_opts.arguments = global_opts.arguments + args
 
-arguments = global_opts.arguments + args
-opts = parser_for_subcommands.parse_args(arguments)
-
+opts = parser_for_subcommands.parse_args(global_opts.arguments)
 
 if not global_opts.dest_vm:
     try:
