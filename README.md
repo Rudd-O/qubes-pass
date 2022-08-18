@@ -29,7 +29,8 @@ so that you can securely manage VMs and machines that require secrets.
 
 ### Compatibility
 
-This program works with Qubes 3 and Qubes 4.
+This program is supported only in Qubes 4.1, although it may work in
+earlier versions.
 
 ## Using the software
 
@@ -73,7 +74,7 @@ Run `qvm-pass -?` on a terminal to get usage information.
 
 *Tip:* fool programs that use `pass` into using `qvm-pass` instead.
 After installation, you can `export PATH=/usr/libexec/qubes-pass:$PATH`
-prior to invoking said programs, to indoce programs (which invoke the
+prior to invoking said programs, to induce programs (which invoke the
 pass store command line program) to invoke `qvm-pass` instead.
 
 ## Installing the software
