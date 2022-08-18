@@ -502,9 +502,8 @@ elif opts.subcommand == "insert":
 
         contents = promptpw("Enter password for %s: " % (opts.key,))
         pw2 = promptpw("Retype password for %s: " % (opts.key,))
-        if contents != pw2:
-            if sys.stdin.isatty():
-                print("Error: the entered passwords do not match.", file=sys.stderr)
+        if sys.stdin.isatty() and contents != pw2:
+            print("Error: the entered passwords do not match.", file=sys.stderr)
             sys.exit(1)
     sys.exit(pass_manage(opts.subcommand, opts.key, str(int(opts.multiline)), contents))
 else:
