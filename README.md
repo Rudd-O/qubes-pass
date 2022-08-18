@@ -16,10 +16,11 @@ other than access to the Qubes services implemented here.
 
 ### Details and features
 
-1. The actual password store is stored in a separate VM, never decrypted in the VM you manage the passwords from.
+1. The actual password store is stored in a separate VM, decrypted solely on demand from it, and sent to the VM you manage / request the from.
 2. You do not need to set up your own GPG key, as `qvm-pass init` does it for you.
 3. There are two different services  one for read-only access and one for read-write.
 4. There is a `get-or-generate` feature, not available in normal `pass`, which is useful for stuff like programs that need a password generated and then remembered (such as the excellent [`qubes-pass` Ansible lookup plugin](https://github.com/Rudd-O/ansible-qubes/tree/master/lookup_plugins).
+5. The program `mlockall()`s during execution, which prevents passwords from being swapped to the disk of the VM running `qvm-pass`.  Dishonorable exceptions from this security feature are the `-c` and `-q` command-line options, since these run `bash` scripts to do their work, and `bash` cannot lock memory.
 
 *Tip:* combine this program with the excellent [`qubes-pass` lookup plugin
 for Ansible Qubes](https://github.com/Rudd-O/ansible-qubes) or the
