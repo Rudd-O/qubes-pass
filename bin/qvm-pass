@@ -378,6 +378,10 @@ def mlockall():
         raise Exception("cannot lock memmory, errno=%s" % ctypes.get_errno())
 
 
+def devnull():
+    return open(os.devnull, "w")
+
+
 # -------------------- Begin ----------------------
 
 
@@ -434,7 +438,7 @@ elif opts.subcommand == "show":
         sys.exit(pass_read("get", opts.key))
 elif opts.subcommand in ("mv", "cp"):
     if not opts.force and sys.stdin.isatty():
-        with open(os.devnull, "w") as null:
+        with devnull() as null:
             if pass_read("get", opts.new, stdout=null, stderr=null) == 0:
                 sys.stderr.write("%s: overwrite %s? " % (opts.subcommand, opts.new))
                 sys.stdin.read(1)
@@ -445,7 +449,7 @@ elif opts.subcommand == "init":
     sys.exit(pass_manage(opts.subcommand, *opts.gpgid))
 elif opts.subcommand == "rm":
     if not opts.force and sys.stdin.isatty():
-        with open(os.devnull, "w") as null:
+        with devnull() as null:
             if pass_read("get", opts.key, stdout=null, stderr=null) == 0:
                 sys.stderr.write(
                     "Are you sure you would like to delete %s? [y/N] " % (opts.key,)
@@ -476,7 +480,7 @@ elif opts.subcommand in ("get-or-generate", "generate"):
         clipqrcodeexit(opts, stdout)
         sys.exit(ret)
 
-    with open(os.devnull, "w") as null:
+    with devnull() as null:
         ret, stdout = pass_read("get", opts.key, return_stdout=True, stderr=null)
 
     if ret == 8:
@@ -504,23 +508,23 @@ elif opts.subcommand in ("get-or-generate", "generate"):
         sys.exit(ret)
 elif opts.subcommand == "insert":
     if not opts.force and sys.stdin.isatty():
-        with open(os.devnull, "w") as null:
+        with devnull() as null:
             ret = pass_read("get", opts.key, stdout=null, stderr=null)
-            if ret == 0:
-                # There.  Confirm.
-                sys.stderr.write(
-                    "An entry already exists for %s. Overwrite it? [y/N] " % (opts.key,)
-                )
-                ans = sys.stdin.readline().strip()
-                if ans and ans[0] in "yY":
-                    pass
-                else:
-                    sys.exit(1)
-            elif ret == 8:
-                # Not there.  Fall through.
+        if ret == 0:
+            # There.  Confirm.
+            sys.stderr.write(
+                "An entry already exists for %s. Overwrite it? [y/N] " % (opts.key,)
+            )
+            ans = sys.stdin.readline().strip()
+            if ans and ans[0] in "yY":
                 pass
             else:
-                sys.exit(ret)
+                sys.exit(1)
+        elif ret == 8:
+            # Not there.  Fall through.
+            pass
+        else:
+            sys.exit(ret)
     if opts.multiline:
         print(
             "Enter contents of %s and press Ctrl+D when finished:\n" % (opts.key,),
