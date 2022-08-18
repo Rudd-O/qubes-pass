@@ -7,7 +7,6 @@ import os
 import signal
 import subprocess
 import sys
-import tempfile
 
 try:
     from pipes import quote
@@ -63,7 +62,7 @@ usage_string = (
 
 # The following code was lifted from the pass program to support
 # identical functionality.
-shell_functions = """
+shell_functions = b"""
 X_SELECTION="${PASSWORD_STORE_X_SELECTION:-clipboard}"
 CLIP_TIME="${PASSWORD_STORE_CLIP_TIME:-45}"
 BASE64="base64"
@@ -96,12 +95,11 @@ clip() {
 	# trailing new lines.
 	pkill -f "^$sleep_argv0" 2>/dev/null && sleep 0.5
 	local before="$("${paste_cmd[@]}" 2>/dev/null | $BASE64)"
-	pwbased=$(cat "$1" | $BASE64) # Customized for qvm-pass.
-	echo -n "$pwbased" | $BASE64 -d | "${copy_cmd[@]}" || die "Error: Could not copy data to the clipboard"
+	echo -n "$1" | "${copy_cmd[@]}" || die "Error: Could not copy data to the clipboard"
 	(
 		( exec -a "$sleep_argv0" bash <<<"trap 'kill %1' TERM; sleep '$CLIP_TIME' & wait" )
 		local now="$("${paste_cmd[@]}" | $BASE64)"
-		[[ $now != $(echo -n "$pwbased") ]] && before="$now"
+		[[ $now != $(echo -n "$1" | $BASE64) ]] && before="$now"
 
 		# It might be nice to programatically check to see if klipper exists,
 		# as well as checking for other common clipboard managers. But for now,
@@ -120,36 +118,38 @@ clip() {
 qrcode() {
 	if [[ -n $DISPLAY || -n $WAYLAND_DISPLAY ]]; then
 		if type feh >/dev/null 2>&1; then
-			cat "$1" | qrencode --size 10 -o - | feh -x --title "pass: $2" -g +200+200 -
+			echo -n "$1" | qrencode --size 10 -o - | feh -x --title "pass: $2" -g +200+200 -
 			return
 		elif type gm >/dev/null 2>&1; then
-			cat "$1" | qrencode --size 10 -o - | gm display -title "pass: $2" -geometry +200+200 -
+			echo -n "$1" | qrencode --size 10 -o - | gm display -title "pass: $2" -geometry +200+200 -
 			return
 		elif type display >/dev/null 2>&1; then
-			cat "$1" | qrencode --size 10 -o - | display -title "pass: $2" -geometry +200+200 -
+			echo -n "$1" | qrencode --size 10 -o - | display -title "pass: $2" -geometry +200+200 -
 			return
 		fi
 	fi
-	cat "$1" | qrencode -t utf8
+	echo -n "$1" | qrencode -t utf8
 }
 """
 
 
 def pass_frontend_shell(cmd, lineno=1):
     cmd, data, path = cmd
+    cmd = quote(cmd)
+    path = quote(path)
     line = data.splitlines()[lineno - 1]
+
     global shell_functions
-    with tempfile.TemporaryDirectory(prefix="qubes-pass-") as d:
-        fifo = os.path.join(d, "fifo")
-        os.mkfifo(fifo)
-        quoted_cmd = (
-            shell_functions + "\n\n" + " ".join(quote(x) for x in (cmd, fifo, path))
-        )
-        p = subprocess.Popen(["bash", "-c", quoted_cmd])
-        with open(fifo, "wb") as fifof:
-            fifof.write(line)
-            fifof.flush()
-        return p.wait()
+    quoted_cmd = shell_functions
+    quoted_cmd += b"\n\n"
+    quoted_cmd += b"DATA=$( echo " + base64.b64encode(line) + b" | $BASE64 -d )\n"
+    quoted_cmd += ("%s %s %s" % (cmd, '"$DATA"', path)).encode("utf-8")
+    # quoted_cmd = (
+    #     shell_functions + b"\n\n" + ("%s %s %s" % (cmd, data, path)).encode("utf-8")
+    # )
+    p = subprocess.Popen(["bash"], stdin=subprocess.PIPE)
+    p.communicate(quoted_cmd)
+    return p.wait()
 
 
 def clip(data, path, lineno=1):
