@@ -1,5 +1,6 @@
 #!/usr/bin/python3 -u
 
+import ctypes
 import argparse
 import base64
 import getpass
@@ -368,8 +369,19 @@ def pass_manage(*args, **kwargs):
     return send_args(PASS_MANAGE, *args, **kwargs)
 
 
+def mlockall():
+    MCL_CURRENT = 1
+    MCL_FUTURE = 2
+    libc = ctypes.CDLL("libc.so.6", use_errno=True)
+    result = libc.mlockall(MCL_CURRENT | MCL_FUTURE)
+    if result != 0:
+        raise Exception("cannot lock memmory, errno=%s" % ctypes.get_errno())
+
+
 # -------------------- Begin ----------------------
 
+
+mlockall()
 
 arguments = sys.argv[1:]
 if "--help" in arguments or "-h" in arguments or "-?" in arguments:
