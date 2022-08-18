@@ -7,6 +7,7 @@ import os
 import signal
 import subprocess
 import sys
+import tempfile
 
 try:
     from pipes import quote
@@ -28,7 +29,7 @@ usage_string = (
             "",
             "    [ls|list|show]",
             "        Retrieves the list of keys from the pass store.",
-            "    [show] [-c] <key>",
+            "    [show] [-c | -q] <key>",
             "        Retrieves a key from the pass store.",
             "    generate [-n] [-f] <key> [pass-length]",
             "        Retrieves a key from the pass store; creates the key",
@@ -36,7 +37,7 @@ usage_string = (
             "        and returns the generated key on standard output.",
             "        The -n option excludes symbols from being used",
             "        during password generation.",
-            "    get-or-generate [-n] <key> [pass-length]",
+            "    get-or-generate [-n | -c | -q] <key> [pass-length]",
             "        Retrieves a key from the pass store; creates the key",
             "        with 25 characters length if it does not exist yet,",
             "        and returns the generated key on standard output.",
@@ -67,6 +68,11 @@ X_SELECTION="${PASSWORD_STORE_X_SELECTION:-clipboard}"
 CLIP_TIME="${PASSWORD_STORE_CLIP_TIME:-45}"
 BASE64="base64"
 
+die() {
+	echo "$@" >&2
+	exit 1
+}
+
 clip() {
 	if [[ -n $WAYLAND_DISPLAY ]]; then
 		local copy_cmd=( wl-copy )
@@ -90,11 +96,12 @@ clip() {
 	# trailing new lines.
 	pkill -f "^$sleep_argv0" 2>/dev/null && sleep 0.5
 	local before="$("${paste_cmd[@]}" 2>/dev/null | $BASE64)"
-	echo -n "$1" | "${copy_cmd[@]}" || die "Error: Could not copy data to the clipboard"
+	pwbased=$(cat "$1" | $BASE64) # Customized for qvm-pass.
+	echo -n "$pwbased" | $BASE64 -d | "${copy_cmd[@]}" || die "Error: Could not copy data to the clipboard"
 	(
 		( exec -a "$sleep_argv0" bash <<<"trap 'kill %1' TERM; sleep '$CLIP_TIME' & wait" )
 		local now="$("${paste_cmd[@]}" | $BASE64)"
-		[[ $now != $(echo -n "$1" | $BASE64) ]] && before="$now"
+		[[ $now != $(echo -n "$pwbased") ]] && before="$now"
 
 		# It might be nice to programatically check to see if klipper exists,
 		# as well as checking for other common clipboard managers. But for now,
@@ -113,33 +120,63 @@ clip() {
 qrcode() {
 	if [[ -n $DISPLAY || -n $WAYLAND_DISPLAY ]]; then
 		if type feh >/dev/null 2>&1; then
-			echo -n "$1" | qrencode --size 10 -o - | feh -x --title "pass: $2" -g +200+200 -
+			cat "$1" | qrencode --size 10 -o - | feh -x --title "pass: $2" -g +200+200 -
 			return
 		elif type gm >/dev/null 2>&1; then
-			echo -n "$1" | qrencode --size 10 -o - | gm display -title "pass: $2" -geometry +200+200 -
+			cat "$1" | qrencode --size 10 -o - | gm display -title "pass: $2" -geometry +200+200 -
 			return
 		elif type display >/dev/null 2>&1; then
-			echo -n "$1" | qrencode --size 10 -o - | display -title "pass: $2" -geometry +200+200 -
+			cat "$1" | qrencode --size 10 -o - | display -title "pass: $2" -geometry +200+200 -
 			return
 		fi
 	fi
-	echo -n "$1" | qrencode -t utf8
+	cat "$1" | qrencode -t utf8
 }
 """
 
 
-def pass_frontend_shell(cmd):
+def pass_frontend_shell(cmd, lineno=1):
+    cmd, data, path = cmd
+    line = data.splitlines()[lineno - 1]
     global shell_functions
-    quoted_cmd = shell_functions + "\n\n" + " ".join(quote(x) for x in cmd)
-    return subprocess.call(["bash", "-c", quoted_cmd])
+    with tempfile.TemporaryDirectory(prefix="qubes-pass-") as d:
+        fifo = os.path.join(d, "fifo")
+        os.mkfifo(fifo)
+        quoted_cmd = (
+            shell_functions + "\n\n" + " ".join(quote(x) for x in (cmd, fifo, path))
+        )
+        p = subprocess.Popen(["bash", "-c", quoted_cmd])
+        with open(fifo, "wb") as fifof:
+            fifof.write(line)
+            fifof.flush()
+        return p.wait()
 
 
-def clip(data, path):
-    return pass_frontend_shell(["clip", data, path])
+def clip(data, path, lineno=1):
+    try:
+        return pass_frontend_shell(["clip", data, path], lineno=lineno)
+    except IndexError:
+        print(
+            f"There is no password to put on the clipboard at line {lineno}.",
+            file=sys.stderr,
+        )
 
 
-def qrcode(data, path):
-    return pass_frontend_shell(["qrcode", data, path])
+def qrcode(data, path, lineno=1):
+    try:
+        return pass_frontend_shell(["qrcode", data, path], lineno=lineno)
+    except IndexError:
+        print(
+            f"There is no password to put on the clipboard at line {lineno}.",
+            file=sys.stderr,
+        )
+
+
+def clipqrcodeexit(opts, stdout: bytes):
+    if opts.clip:
+        sys.exit(clip(stdout, opts.key, opts.clip))
+    elif opts.qrcode:
+        sys.exit(qrcode(stdout, opts.key, opts.qrcode))
 
 
 parser_for_discrimination = argparse.ArgumentParser(description="(nobody sees this)")
@@ -235,16 +272,16 @@ for p in ["show", "get-or-generate", "generate"]:
     _parsers[p].add_argument(
         "-c",
         "--clip",
-        action="store_true",
+        type=int,
         help="copy password to clipboard instead of displaying onscreen",
-        default=False,
+        default=0,
     )
     _parsers[p].add_argument(
         "-q",
         "--qrcode",
-        action="store_true",
+        type=int,
         help="display password as QR code",
-        default=False,
+        default=0,
     )
 
 for p in ["mv", "cp", "rm", "insert", "generate"]:
@@ -338,6 +375,11 @@ arguments = sys.argv[1:]
 if "--help" in arguments or "-h" in arguments or "-?" in arguments:
     parser_for_subcommands.parse_known_args(arguments)
     sys.exit(os.EX_USAGE)
+for n, arg in enumerate(arguments):
+    if arg == "-c" or arg == "--clip":
+        arguments[n] = "--clip=1"
+    elif arg == "-q" or arg == "--qrcode":
+        arguments[n] = "--qrcode=1"
 
 
 global_opts, args = parser_for_discrimination.parse_known_args(arguments)
@@ -375,11 +417,7 @@ elif opts.subcommand == "show":
         ret, stdout = pass_read("get", opts.key, return_stdout=True)
         if ret != 0:
             sys.exit(ret)
-        stdout = stdout.decode("utf-8")
-        if opts.clip:
-            sys.exit(clip(stdout, opts.key))
-        elif opts.qrcode:
-            sys.exit(qrcode(stdout, opts.key))
+        clipqrcodeexit(opts, stdout)
     else:
         sys.exit(pass_read("get", opts.key))
 elif opts.subcommand in ("mv", "cp"):
@@ -423,10 +461,7 @@ elif opts.subcommand in ("get-or-generate", "generate"):
             ret, stdout = pass_read("get", opts.key, **kwargs)
             if ret != 0:
                 sys.exit(ret)
-        if opts.clip:
-            sys.exit(clip(stdout.decode("utf-8"), opts.key))
-        elif opts.qrcode:
-            sys.exit(qrcode(stdout.decode("utf-8"), opts.key))
+        clipqrcodeexit(opts, stdout)
         sys.exit(ret)
 
     with open(os.devnull, "w") as null:
@@ -437,13 +472,9 @@ elif opts.subcommand in ("get-or-generate", "generate"):
         doit()
     elif ret == 0:
         if opts.subcommand == "get-or-generate":
-            if opts.clip:
-                sys.exit(clip(stdout.decode("utf-8"), opts.key))
-            elif opts.qrcode:
-                sys.exit(qrcode(stdout.decode("utf-8"), opts.key))
-            else:
-                sys.stdout.buffer.write(stdout)
-                sys.exit(ret)
+            clipqrcodeexit(opts, stdout)
+            sys.stdout.buffer.write(stdout)
+            sys.exit(ret)
         else:  # generate
             if not opts.force and sys.stdin.isatty():
                 sys.stderr.write(
