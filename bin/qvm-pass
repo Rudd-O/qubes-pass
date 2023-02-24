@@ -9,10 +9,7 @@ import signal
 import subprocess
 import sys
 
-try:
-    from pipes import quote
-except ImportError:
-    from shlex import quote
+from shlex import quote
 
 
 signal.signal(signal.SIGINT, signal.SIG_DFL)
