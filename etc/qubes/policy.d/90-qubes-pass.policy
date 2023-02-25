@@ -1,0 +1,4 @@
+## Default qubes-pass policies.
+
+ruddo.PassRead     *   @anyvm   @anyvm   ask
+ruddo.PassManage   *   @anyvm   @anyvm   ask

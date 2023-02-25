@@ -3,7 +3,7 @@
 %define mybuildnumber %{?build_number}%{?!build_number:1}
 
 Name:           qubes-pass
-Version:        0.0.36
+Version:        0.1.0
 Release:        %{mybuildnumber}%{?dist}
 Summary:        Inter-VM pass password management for Qubes OS AppVMs and StandaloneVMs
 BuildArch:      noarch
@@ -26,8 +26,7 @@ Requires:       util-linux
 
 %package dom0
 Summary:        Policy package for Qubes OS dom0s that arbitrates %{name}
-
-Requires:       qubes-core-dom0-linux
+Requires:       qubes-core-dom0 >= 4.1
 
 %description
 This package lets you setup a safe password management VM and then
@@ -60,7 +59,7 @@ for target in install-client install-service install-dom0; do
 done
 
 %check
-if grep -r '@.*@' $RPM_BUILD_ROOT ; then
+if grep -r '@.*@' --exclude='*.policy' $RPM_BUILD_ROOT ; then
     echo "Check failed: files with AT identifiers appeared" >&2
     exit 1
 fi
@@ -75,8 +74,7 @@ fi
 %attr(0755, root, root) %{_sysconfdir}/qubes-rpc/ruddo.PassManage
 
 %files dom0
-%config(noreplace) %attr(0664, root, qubes) %{_sysconfdir}/qubes-rpc/policy/ruddo.PassRead
-%config(noreplace) %attr(0664, root, qubes) %{_sysconfdir}/qubes-rpc/policy/ruddo.PassManage
+%config(noreplace) %attr(0664, root, qubes) %{_sysconfdir}/qubes/policy.d/90-qubes-pass.policy
 
 %changelog
 * Mon Jan 31 2022 Manuel Amador (Rudd-O) <rudd-o@rudd-o.com>

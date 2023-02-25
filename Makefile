@@ -29,7 +29,5 @@ install-service:
 	install -Dm 755 etc/qubes-rpc/ruddo.PassManage -t $(DESTDIR)/$(SYSCONFDIR)/qubes-rpc/
 
 install-dom0:
-	install -Dm 664 etc/qubes-rpc/policy/ruddo.PassRead -t $(DESTDIR)/$(SYSCONFDIR)/qubes-rpc/policy/
-	getent group qubes && chgrp qubes $(DESTDIR)/$(SYSCONFDIR)/qubes-rpc/policy/ || true
-	install -Dm 664 etc/qubes-rpc/policy/ruddo.PassManage -t $(DESTDIR)/$(SYSCONFDIR)/qubes-rpc/policy/
-	getent group qubes && chgrp qubes $(DESTDIR)/$(SYSCONFDIR)/qubes-rpc/policy/ || true
+	install -Dm 664 etc/qubes/policy.d/90-qubes-pass.policy -t $(DESTDIR)/$(SYSCONFDIR)/qubes/policy.d/
+	getent group qubes && chgrp qubes $(DESTDIR)/$(SYSCONFDIR)/qubes/policy.d/90-qubes-pass.policy || true
